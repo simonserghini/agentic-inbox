@@ -2,6 +2,8 @@
 @import "@cloudflare/kumo/styles/tailwind";
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 body {
   margin: 0;
 }
