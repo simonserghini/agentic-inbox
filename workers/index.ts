@@ -450,9 +450,12 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		thread_id: threadId, message_id: originalMessageId, raw_headers: JSON.stringify(parsedEmail.headers),
 	}, attachmentData);
 
+	const preview = parsedEmail.text ? parsedEmail.text.substring(0, 200) + (parsedEmail.text.length > 200 ? "..." : "") : "(No Content)";
+	const fromStr = parsedEmail.from?.address || parsedEmail.from?.name || "Unknown Sender";
+
 	ctx.waitUntil(triggerWebhook(env, ctx, {
 		event: "email.received",
-		content: `📬 **New Email Received**\n**From:** ${parsedEmail.from.text}\n**Subject:** ${parsedEmail.subject || "(No Subject)"}`,
+		content: `📬 **New Email Received**\n**From:** ${fromStr}\n**Subject:** ${parsedEmail.subject || "(No Subject)"}\n\n${preview}`,
 		mailboxId,
 		email: {
 			id: messageId,
