@@ -10,7 +10,30 @@ interface BrandingContextType {
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
-	const [branding, setBranding] = useState<BrandingConfig>(defaultBranding);
+	const [branding, setBranding] = useState<BrandingConfig>(() => {
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("branding_cache");
+			if (saved) return { ...defaultBranding, ...JSON.parse(saved) };
+		}
+		return defaultBranding;
+	});
+
+	const applyBranding = (cfg: BrandingConfig) => {
+		if (typeof document === "undefined") return;
+		document.documentElement.style.setProperty("--color-kumo-brand", cfg.primaryColor);
+		document.documentElement.style.setProperty("--text-color-kumo-brand", cfg.primaryColor);
+		document.title = cfg.appName;
+		const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+		if (link) link.href = cfg.faviconUrl;
+
+		if (cfg.darkModeEnabled) {
+			document.documentElement.classList.add("dark");
+			document.documentElement.setAttribute("data-mode", "dark");
+		} else {
+			document.documentElement.classList.remove("dark");
+			document.documentElement.setAttribute("data-mode", "light");
+		}
+	};
 
 	const refreshBranding = async () => {
 		try {
@@ -19,33 +42,16 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 				const data = (await res.json()) as Partial<BrandingConfig>;
 				const newBranding = { ...defaultBranding, ...data };
 				setBranding(newBranding);
-				
-				if (typeof document !== "undefined") {
-					document.documentElement.style.setProperty("--color-kumo-brand", newBranding.primaryColor);
-					document.documentElement.style.setProperty("--text-color-kumo-brand", newBranding.primaryColor);
-					document.title = newBranding.appName;
-					
-					const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-					if (link) link.href = newBranding.faviconUrl;
-
-					if (newBranding.darkModeEnabled) {
-						document.documentElement.classList.add("dark");
-						document.documentElement.setAttribute("data-mode", "dark");
-					} else {
-						// Don't remove if manually set by user toggle (if we had one)
-						// But for global "forced" mode, we follow the config.
-						// Actually, better to just apply it.
-						document.documentElement.classList.remove("dark");
-						document.documentElement.setAttribute("data-mode", "light");
-					}
-				}
+				localStorage.setItem("branding_cache", JSON.stringify(newBranding));
+				applyBranding(newBranding);
 			}
 		} catch (error) {
-			console.error("Failed to load branding", error);
+			console.error(error);
 		}
 	};
 
 	useEffect(() => {
+		applyBranding(branding);
 		refreshBranding();
 	}, []);
 
@@ -58,8 +64,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
 export function useBranding() {
 	const context = useContext(BrandingContext);
-	if (!context) {
-		throw new Error("useBranding must be used within a BrandingProvider");
-	}
+	if (!context) throw new Error();
 	return context;
 }
