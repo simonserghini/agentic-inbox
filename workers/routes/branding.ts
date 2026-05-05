@@ -15,16 +15,21 @@ export async function getBranding(c: Context<{ Bindings: Env }>) {
 
 export async function updateBranding(c: Context<{ Bindings: Env }>) {
 	try {
-		let config: Record<string, string> = {};
+		let config: any = {};
 		const contentType = c.req.header("content-type") || "";
 		
 		if (contentType.includes("multipart/form-data")) {
 			const formData = await c.req.parseBody();
-			
-			config.appName = (formData.appName as string) || "Agentic Inbox";
-			config.primaryColor = (formData.primaryColor as string) || "#f6821f";
-			config.logoUrl = (formData.logoUrl as string) || "";
-			config.faviconUrl = (formData.faviconUrl as string) || "";
+			const obj = await c.env.BUCKET.get("_branding/config.json");
+			config = obj ? await obj.json() : {};
+
+			config.appName = (formData.appName as string) || config.appName || "Agentic Inbox";
+			config.primaryColor = (formData.primaryColor as string) || config.primaryColor || "#f6821f";
+			config.darkModeEnabled = formData.darkModeEnabled === "true";
+			config.webhookUrl = (formData.webhookUrl as string) || config.webhookUrl || "";
+			config.apiKey = (formData.apiKey as string) || config.apiKey || "";
+			config.logoUrl = (formData.logoUrl as string) || config.logoUrl || "";
+			config.faviconUrl = (formData.faviconUrl as string) || config.faviconUrl || "";
 			
 			if (formData.logo instanceof File) {
 				const logo = formData.logo;

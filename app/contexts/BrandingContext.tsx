@@ -27,6 +27,17 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 					
 					const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
 					if (link) link.href = newBranding.faviconUrl;
+
+					if (newBranding.darkModeEnabled) {
+						document.documentElement.classList.add("dark");
+						document.documentElement.setAttribute("data-mode", "dark");
+					} else {
+						// Don't remove if manually set by user toggle (if we had one)
+						// But for global "forced" mode, we follow the config.
+						// Actually, better to just apply it.
+						document.documentElement.classList.remove("dark");
+						document.documentElement.setAttribute("data-mode", "light");
+					}
 				}
 			}
 		} catch (error) {

@@ -3,6 +3,9 @@ export interface BrandingConfig {
 	primaryColor: string;
 	logoUrl: string;
 	faviconUrl: string;
+	darkModeEnabled: boolean;
+	webhookUrl: string;
+	apiKey: string;
 }
 
 export const defaultBranding: BrandingConfig = {
@@ -10,4 +13,7 @@ export const defaultBranding: BrandingConfig = {
 	primaryColor: "#f6821f",
 	logoUrl: "/favicon.svg",
 	faviconUrl: "/favicon.ico",
+	darkModeEnabled: false,
+	webhookUrl: "",
+	apiKey: "",
 };

@@ -329,6 +329,42 @@ app.get("/api/v1/mailboxes/:mailboxId/emails/:emailId/attachments/:attachmentId"
 	return new Response(obj.body, { headers });
 });
 
+// -- Developer API & Webhooks --------------------------------------
+
+app.post("/api/v1/send", async (c) => {
+	const auth = c.req.header("Authorization");
+	const cfgObj = await c.env.BUCKET.get("_branding/config.json");
+	const cfg = cfgObj ? await cfgObj.json() as any : {};
+	
+	if (!auth || auth !== `Bearer ${cfg.apiKey}`) {
+		return c.json({ error: "Unauthorized" }, 401);
+	}
+
+	try {
+		const body = await c.req.json();
+		const result = await sendEmail(c.env.EMAIL, body);
+		return c.json({ success: true, result });
+	} catch (e) {
+		return c.json({ error: (e as Error).message }, 500);
+	}
+});
+
+async function triggerWebhook(env: Env, ctx: ExecutionContext, payload: any) {
+	try {
+		const cfgObj = await env.BUCKET.get("_branding/config.json");
+		const cfg = cfgObj ? await cfgObj.json() as any : {};
+		if (cfg.webhookUrl) {
+			ctx.waitUntil(fetch(cfg.webhookUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload)
+			}).catch(e => console.error("Webhook failed:", e)));
+		}
+	} catch (e) {
+		console.error("Failed to trigger webhook:", e);
+	}
+}
+
 // -- Receive inbound email ------------------------------------------
 
 const MAX_EMAIL_SIZE = 25 * 1024 * 1024;
@@ -405,6 +441,22 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		in_reply_to: inReplyTo, email_references: emailReferences.length > 0 ? JSON.stringify(emailReferences) : null,
 		thread_id: threadId, message_id: originalMessageId, raw_headers: JSON.stringify(parsedEmail.headers),
 	}, attachmentData);
+
+	ctx.waitUntil(triggerWebhook(env, ctx, {
+		event: "email.received",
+		mailboxId,
+		email: {
+			id: messageId,
+			subject: parsedEmail.subject,
+			from: parsedEmail.from,
+			to: parsedEmail.to,
+			cc: parsedEmail.cc,
+			bcc: parsedEmail.bcc,
+			date: parsedEmail.date,
+			text: parsedEmail.text,
+			html: parsedEmail.html,
+		}
+	}));
 
 	const agentStub = env.EMAIL_AGENT.get(env.EMAIL_AGENT.idFromName(mailboxId));
 	ctx.waitUntil(agentStub.fetch(new Request("https://agents/onNewEmail", {
