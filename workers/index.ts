@@ -356,8 +356,16 @@ async function triggerWebhook(env: Env, ctx: ExecutionContext, payload: any) {
 		if (cfg.webhookUrl) {
 			ctx.waitUntil(fetch(cfg.webhookUrl, {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload)
+				headers: { 
+					"Content-Type": "application/json",
+					"X-Webhook-Source": "Agentic-Inbox",
+					"X-Webhook-Event": payload.event || "unknown",
+					"User-Agent": "Agentic-Inbox-Webhook/1.0"
+				},
+				body: JSON.stringify({
+					...payload,
+					timestamp: new Date().toISOString(),
+				})
 			}).catch(e => console.error("Webhook failed:", e)));
 		}
 	} catch (e) {
@@ -444,6 +452,7 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 
 	ctx.waitUntil(triggerWebhook(env, ctx, {
 		event: "email.received",
+		content: `📬 **New Email Received**\n**From:** ${parsedEmail.from.text}\n**Subject:** ${parsedEmail.subject || "(No Subject)"}`,
 		mailboxId,
 		email: {
 			id: messageId,
