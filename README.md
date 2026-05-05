@@ -92,6 +92,36 @@ Any user who passes the shared Cloudflare Access policy can access all mailboxes
                      │                  │────>│  Workers AI     │
                      └──────────────────┘     └─────────────────┘
 ```
+## API 
+If you're hitting this API from a script, Cloudflare is going to try to redirect you to a login page (302). so you'll need to use a Service Token.
+1. Setup
+
+    Generate a Service Token in the Zero Trust dashboard.
+
+    Add a policy to this app with the action Service Auth.
+
+    This policy must be at the top (Priority 1) or it’ll get ignored.
+
+2. Headers
+
+You need three specific headers. Two for Cloudflare to let you in, and one for the Worker to actually process the request.
+
+# Get these from your Cloudflare Service Token
+CF-Access-Client-Id: <your-id>
+CF-Access-Client-Secret: <your-secret>
+
+# This is your internal API key for the Worker
+Authorization: <your-token>
+
+3. Quick Test
+Bash
+
+curl -X POST https://your.domain/api/v1/send \
+  -H "CF-Access-Client-Id: ${CF_ID}" \
+  -H "CF-Access-Client-Secret: ${CF_SECRET}" \
+  -H "Authorization:  ${API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "test@example.com", "subject": "Working", "text": "No more 302s."}'
 
 ## License
 
