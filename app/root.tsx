@@ -24,6 +24,7 @@ import {
 } from "react-router";
 import { ApiError } from "~/services/api";
 import "./index.css";
+import { BrandingProvider } from "~/contexts/BrandingContext";
 
 function makeQueryClient() {
 	return new QueryClient({
@@ -115,13 +116,15 @@ export default function App() {
 	const [queryClient] = useState(getQueryClient);
 	return (
 		<QueryClientProvider client={queryClient}>
-			<LinkProvider component={KumoLink}>
-				<TooltipProvider>
-					<Toasty>
-						<Outlet />
-					</Toasty>
-				</TooltipProvider>
-			</LinkProvider>
+			<BrandingProvider>
+				<LinkProvider component={KumoLink}>
+					<TooltipProvider>
+						<Toasty>
+							<Outlet />
+						</Toasty>
+					</TooltipProvider>
+				</LinkProvider>
+			</BrandingProvider>
 		</QueryClientProvider>
 	);
 }

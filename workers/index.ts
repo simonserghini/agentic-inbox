@@ -20,6 +20,7 @@ import { handleReplyEmail, handleForwardEmail } from "./routes/reply-forward";
 import { Folders } from "../shared/folders";
 import type { Env } from "./types";
 import { requireMailbox, type MailboxContext } from "./lib/mailbox";
+import { getBranding, updateBranding, getBrandingFile } from "./routes/branding";
 
 type AppContext = Context<MailboxContext>;
 
@@ -84,13 +85,16 @@ app.use("/api/*", cors({
 app.use("/api/v1/mailboxes/:mailboxId/*", requireMailbox);
 
 // -- Config ---------------------------------------------------------
-
 app.get("/api/v1/config", (c) => {
 	const domainsRaw = c.env.DOMAINS || "";
 	const domains = domainsRaw.split(",").map((d) => d.trim()).filter(Boolean);
 	const emailAddresses = c.env.EMAIL_ADDRESSES ?? [];
 	return c.json({ domains, emailAddresses });
 });
+
+app.get("/api/v1/branding", getBranding);
+app.post("/api/v1/branding", updateBranding);
+app.get("/api/v1/branding/files/:path", getBrandingFile);
 
 // -- Mailboxes ------------------------------------------------------
 

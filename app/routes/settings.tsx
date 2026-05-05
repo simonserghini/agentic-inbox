@@ -7,6 +7,7 @@ import { RobotIcon, ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { useMailbox, useUpdateMailbox } from "~/queries/mailboxes";
+import SettingsBranding from "~/components/SettingsBranding";
 
 // Placeholder shown in the textarea when no custom prompt is set.
 // The authoritative default prompt lives in workers/agent/index.ts (DEFAULT_SYSTEM_PROMPT).
@@ -126,11 +127,14 @@ export default function SettingsRoute() {
 					</p>
 				</div>
 
-				{/* Save */}
 				<div className="flex justify-end">
 					<Button variant="primary" onClick={handleSave} loading={isSaving}>
 						Save Changes
 					</Button>
+				</div>
+
+				<div className="pt-8 border-t border-kumo-line">
+					<SettingsBranding />
 				</div>
 			</div>
 		</div>
