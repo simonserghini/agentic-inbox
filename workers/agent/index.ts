@@ -395,6 +395,33 @@ export class EmailAgent extends AIChatAgent<any> {
 				}
 				
 				emailBody = stripHtmlToText(email.body);
+
+				// -- Auto-Categorization --
+				try {
+					const classificationResult = await generateText({
+						model: workersai("@cf/meta/llama-3.1-8b-instruct"),
+						prompt: `Classify this email into one of these categories: Invoices, Travel, Newsletters, Action Required, or Other.
+Only respond with the category name. No other text.
+
+Subject: ${emailData.subject}
+Body Snippet: ${emailBody.substring(0, 500)}`,
+					});
+
+					const category = classificationResult.text.trim().replace(/[.,!]/g, "");
+					const validCategories = ["Invoices", "Travel", "Newsletters", "Action Required"];
+					
+					if (validCategories.includes(category)) {
+						const folderId = category.toLowerCase().replace(/\s+/g, "-");
+						const folders = await (stub as any).getFolders();
+						if (!folders.find((f: any) => f.id === folderId)) {
+							await (stub as any).createFolder(folderId, category);
+						}
+						await (stub as any).moveEmail(emailData.emailId, folderId);
+						console.log(`Auto-categorized email ${emailData.emailId} as ${category}`);
+					}
+				} catch (catErr) {
+					console.error("Auto-categorization failed:", (catErr as Error).message);
+				}
 			}
 
 		// Load thread for conversation context
