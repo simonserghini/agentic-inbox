@@ -6,6 +6,8 @@ export interface BrandingConfig {
 	darkModeEnabled: boolean;
 	webhookUrl: string;
 	apiKey: string;
+	resendApiKey: string;
+	resendApiKeyConfigured?: boolean;
 }
 
 export const defaultBranding: BrandingConfig = {
@@ -16,4 +18,6 @@ export const defaultBranding: BrandingConfig = {
 	darkModeEnabled: false,
 	webhookUrl: "",
 	apiKey: "",
+	resendApiKey: "",
+	resendApiKeyConfigured: false,
 };

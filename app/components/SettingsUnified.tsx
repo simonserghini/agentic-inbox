@@ -1,7 +1,7 @@
 import { Button, Input, useKumoToastManager, Switch, Surface } from "@cloudflare/kumo";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
-import { Copy, RotateCcw, Palette, Code, Settings } from "lucide-react";
+import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap } from "lucide-react";
 
 export default function SettingsUnified() {
 	const { branding, refreshBranding } = useBranding();
@@ -12,10 +12,15 @@ export default function SettingsUnified() {
 	const [darkModeEnabled, setDarkModeEnabled] = useState(branding.darkModeEnabled);
 	const [webhookUrl, setWebhookUrl] = useState(branding.webhookUrl);
 	const [apiKey, setApiKey] = useState(branding.apiKey);
+	const [resendApiKey, setResendApiKey] = useState(branding.resendApiKey);
+	const [showResendKey, setShowResendKey] = useState(false);
 	const [logo, setLogo] = useState<File | null>(null);
 	const [favicon, setFavicon] = useState<File | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [activeTab, setActiveTab] = useState<"general" | "branding" | "developer">("general");
+	const [activeTab, setActiveTab] = useState<"general" | "branding" | "email" | "developer">("general");
+
+	// Track whether a Resend key is configured on the backend (from the masked response)
+	const resendConfigured = branding.resendApiKeyConfigured ?? false;
 
 	useEffect(() => {
 		setAppName(branding.appName);
@@ -23,6 +28,7 @@ export default function SettingsUnified() {
 		setDarkModeEnabled(branding.darkModeEnabled);
 		setWebhookUrl(branding.webhookUrl);
 		setApiKey(branding.apiKey);
+		setResendApiKey(branding.resendApiKey);
 	}, [branding]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +41,7 @@ export default function SettingsUnified() {
 			formData.append("darkModeEnabled", String(darkModeEnabled));
 			formData.append("webhookUrl", webhookUrl);
 			formData.append("apiKey", apiKey);
+			formData.append("resendApiKey", resendApiKey);
 			formData.append("logoUrl", branding.logoUrl);
 			formData.append("faviconUrl", branding.faviconUrl);
 			if (logo) formData.append("logo", logo);
@@ -42,6 +49,7 @@ export default function SettingsUnified() {
 			const res = await fetch("/api/v1/branding", { method: "POST", body: formData });
 			if (!res.ok) throw new Error();
 			await refreshBranding();
+			setShowResendKey(false);
 			toastManager.add({ title: "Settings saved successfully" });
 		} catch {
 			toastManager.add({ title: "Error saving settings", variant: "error" });
@@ -50,13 +58,18 @@ export default function SettingsUnified() {
 		}
 	};
 
+	const handleClearResendKey = () => {
+		setResendApiKey("__CLEAR__");
+		toastManager.add({ title: "Resend key marked for removal — click Save to apply" });
+	};
+
 	return (
 		<div className="flex flex-col md:flex-row gap-8 min-h-[500px]">
 			<div className="w-full md:w-64 flex flex-col gap-1">
 				{[
 					{ id: "general", label: "General", icon: <Settings size={18} /> },
 					{ id: "branding", label: "Branding", icon: <Palette size={18} /> },
-					{ id: "developer", label: "Developer", icon: <Code size={18} /> },
+					{ id: "developer", label: "Developer & Email", icon: <Code size={18} /> },
 				].map((tab) => (
 					<button
 						key={tab.id}
@@ -158,41 +171,165 @@ export default function SettingsUnified() {
 					)}
 
 					{activeTab === "developer" && (
-						<div className="space-y-6">
+						<div className="space-y-8">
 							<div>
-								<h3 className="text-xl font-bold text-kumo-default mb-1">Developer API</h3>
-								<p className="text-sm text-kumo-subtle">Manage webhooks and API access.</p>
+								<h3 className="text-xl font-bold text-kumo-default mb-1">Developer & Email Integrations</h3>
+								<p className="text-sm text-kumo-subtle">Manage external connections and email delivery.</p>
 							</div>
-							<Input
-								label="Inbound Webhook URL"
-								value={webhookUrl}
-								onChange={(e) => setWebhookUrl(e.target.value)}
-								placeholder="https://api.yoursite.com/webhook"
-							/>
-							<div className="space-y-3">
-								<label className="text-sm font-semibold text-kumo-default">Secret API Key</label>
-								<div className="flex gap-2">
-									<Input value={apiKey} readOnly className="font-mono text-xs bg-kumo-recessed flex-1 h-11" />
-									<Button
-										variant="secondary"
-										shape="square"
-										icon={<Copy size={16} />}
-										onClick={() => {
-											navigator.clipboard.writeText(apiKey);
-											toastManager.add({ title: "Copied" });
-										}}
-										aria-label="Copy Key"
-									/>
-									<Button
-										variant="secondary"
-										shape="square"
-										icon={<RotateCcw size={16} />}
-										onClick={() => setApiKey(crypto.randomUUID())}
-										aria-label="Refresh Key"
-									/>
+
+							<div className="space-y-6">
+								<div className="text-sm font-bold text-kumo-default uppercase tracking-wider flex items-center gap-2">
+									<Mail size={16} className="text-kumo-brand" />
+									Email Delivery (Resend)
 								</div>
-								<div className="text-[10px] text-kumo-subtle mt-1 px-1 uppercase tracking-tight">
-									Bearer token for POST /api/v1/send
+								
+								{/* Provider Status Card */}
+								<div className="p-5 rounded-2xl border border-kumo-line bg-kumo-recessed/50">
+									<div className="flex items-center justify-between mb-4">
+										<div className="text-sm font-semibold text-kumo-default">Active Provider</div>
+										<div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
+											resendConfigured
+												? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+												: "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+										}`}>
+											{resendConfigured ? (
+												<>
+													<Zap size={13} />
+													Resend API
+												</>
+											) : (
+												<>
+													<Mail size={13} />
+													Cloudflare Email
+												</>
+											)}
+										</div>
+									</div>
+									<div className="text-xs text-kumo-subtle leading-relaxed">
+										{resendConfigured
+											? "Outbound emails are routed through the Resend API using your BYOK key. Remove the key below to fall back to Cloudflare Email."
+											: "Outbound emails use the built-in Cloudflare Email Service binding. Add a Resend API key below to switch to Resend."}
+									</div>
+								</div>
+
+								{/* Resend BYOK Section */}
+								<div className="space-y-4">
+									<div className="flex items-center gap-3">
+										<Zap size={18} className="text-kumo-subtle" />
+										<div>
+											<div className="text-sm font-semibold text-kumo-default">Resend API Key (BYOK)</div>
+											<div className="text-xs text-kumo-subtle">Bring your own Resend key for enhanced deliverability and analytics.</div>
+										</div>
+									</div>
+
+									<div className="flex gap-2">
+										<div className="relative flex-1">
+											<Input
+												value={resendApiKey === "__CLEAR__" ? "" : resendApiKey}
+												onChange={(e) => setResendApiKey(e.target.value)}
+												type={showResendKey ? "text" : "password"}
+												placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxx"
+												className="font-mono text-xs h-11 pr-10"
+											/>
+											<button
+												type="button"
+												onClick={() => setShowResendKey(!showResendKey)}
+												className="absolute right-3 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-default transition-colors"
+											>
+												{showResendKey ? <EyeOff size={16} /> : <Eye size={16} />}
+											</button>
+										</div>
+										{resendConfigured && (
+											<Button
+												type="button"
+												variant="secondary"
+												onClick={handleClearResendKey}
+												className="text-xs h-11 px-4 text-red-500 hover:text-red-600"
+											>
+												<XCircle size={14} />
+												Remove
+											</Button>
+										)}
+									</div>
+
+									{resendConfigured && resendApiKey !== "__CLEAR__" && (
+										<div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 px-1">
+											<CheckCircle size={14} />
+											Key is configured and active.
+										</div>
+									)}
+									{resendApiKey === "__CLEAR__" && (
+										<div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 px-1">
+											<XCircle size={14} />
+											Key will be removed on save — Cloudflare Email will become the active provider.
+										</div>
+									)}
+
+									<div className="text-[10px] text-kumo-subtle px-1 uppercase tracking-tight">
+										Get your API key from{" "}
+										<a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-kumo-default transition-colors">
+											resend.com/api-keys
+										</a>
+									</div>
+								</div>
+
+								{/* How it works */}
+								<div className="p-5 rounded-2xl border border-dashed border-kumo-line bg-kumo-recessed/30">
+									<div className="text-xs font-semibold text-kumo-default mb-3">How Hybrid Sending Works</div>
+									<div className="space-y-2 text-xs text-kumo-subtle leading-relaxed">
+										<div className="flex items-start gap-2">
+											<span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-kumo-tint text-kumo-default text-[10px] font-bold shrink-0 mt-0.5">1</span>
+											<span>When you send an email, the worker checks if a <span className="font-mono text-kumo-default">RESEND_API_KEY</span> is configured.</span>
+										</div>
+										<div className="flex items-start gap-2">
+											<span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-kumo-tint text-kumo-default text-[10px] font-bold shrink-0 mt-0.5">2</span>
+											<span>If present, the email is sent via <span className="font-mono text-kumo-default">POST https://api.resend.com/emails</span>.</span>
+										</div>
+										<div className="flex items-start gap-2">
+											<span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-kumo-tint text-kumo-default text-[10px] font-bold shrink-0 mt-0.5">3</span>
+											<span>If not, the built-in <span className="font-mono text-kumo-default">env.EMAIL.send()</span> Cloudflare binding is used as fallback.</span>
+										</div>
+									</div>
+								</div>
+							</div>
+
+							<div className="border-t border-kumo-line pt-8 space-y-6">
+								<div className="text-sm font-bold text-kumo-default uppercase tracking-wider flex items-center gap-2">
+									<Code size={16} className="text-kumo-brand" />
+									Developer API
+								</div>
+								
+								<Input
+									label="Inbound Webhook URL"
+									value={webhookUrl}
+									onChange={(e) => setWebhookUrl(e.target.value)}
+									placeholder="https://api.yoursite.com/webhook"
+								/>
+								<div className="space-y-3">
+									<label className="text-sm font-semibold text-kumo-default">Secret API Key</label>
+									<div className="flex gap-2">
+										<Input value={apiKey} readOnly className="font-mono text-xs bg-kumo-recessed flex-1 h-11" />
+										<Button
+											variant="secondary"
+											shape="square"
+											icon={<Copy size={16} />}
+											onClick={() => {
+												navigator.clipboard.writeText(apiKey);
+												toastManager.add({ title: "Copied" });
+											}}
+											aria-label="Copy Key"
+										/>
+										<Button
+											variant="secondary"
+											shape="square"
+											icon={<RotateCcw size={16} />}
+											onClick={() => setApiKey(crypto.randomUUID())}
+											aria-label="Refresh Key"
+										/>
+									</div>
+									<div className="text-[10px] text-kumo-subtle mt-1 px-1 uppercase tracking-tight">
+										Bearer token for POST /api/v1/send
+									</div>
 								</div>
 							</div>
 						</div>

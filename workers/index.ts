@@ -6,7 +6,7 @@ import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import PostalMime from "postal-mime";
 import { z } from "zod";
-import { sendEmail } from "./email-sender";
+import { dispatchEmail } from "./email-sender";
 import { storeAttachments, type StoredAttachment } from "./lib/attachments";
 import {
 	validateSender,
@@ -206,7 +206,7 @@ app.post("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 	}, attachmentData);
 
 	c.executionCtx.waitUntil(
-		sendEmail(c.env.EMAIL, {
+		dispatchEmail({ emailBinding: c.env.EMAIL, bucket: c.env.BUCKET }, {
 			to, cc, bcc, from, subject, html, text,
 			attachments: attachments?.map((att) => ({ content: att.content, filename: att.filename, type: att.type, disposition: att.disposition || "attachment", contentId: att.contentId })),
 			...(in_reply_to ? { headers: buildThreadingHeaders(in_reply_to, references || []) } : {}),
@@ -342,7 +342,7 @@ app.post("/api/v1/send", async (c) => {
 
 	try {
 		const body = await c.req.json();
-		const result = await sendEmail(c.env.EMAIL, body);
+		const result = await dispatchEmail({ emailBinding: c.env.EMAIL, bucket: c.env.BUCKET }, body);
 		return c.json({ success: true, result });
 	} catch (e) {
 		return c.json({ error: (e as Error).message }, 500);

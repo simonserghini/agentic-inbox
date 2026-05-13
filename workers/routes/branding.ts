@@ -1,13 +1,27 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
 
+/** Mask an API key for safe display — returns empty string or "re_****XXXX" */
+function maskApiKey(key: string | undefined): string {
+	if (!key) return "";
+	if (key.length <= 8) return "••••••••";
+	return key.substring(0, 3) + "••••" + key.substring(key.length - 4);
+}
+
 export async function getBranding(c: Context<{ Bindings: Env }>) {
 	try {
 		const obj = await c.env.BUCKET.get("_branding/config.json");
 		if (!obj) {
 			return c.json({});
 		}
-		return c.json(await obj.json());
+		const config = await obj.json() as any;
+		// Never expose the full Resend API key to the frontend
+		const maskedConfig = {
+			...config,
+			resendApiKey: maskApiKey(config.resendApiKey),
+			resendApiKeyConfigured: Boolean(config.resendApiKey && config.resendApiKey.length > 0),
+		};
+		return c.json(maskedConfig);
 	} catch (e) {
 		return c.json({ error: "Failed to fetch branding" }, 500);
 	}
@@ -30,6 +44,17 @@ export async function updateBranding(c: Context<{ Bindings: Env }>) {
 			config.apiKey = (formData.apiKey as string) || config.apiKey || "";
 			config.logoUrl = (formData.logoUrl as string) || config.logoUrl || "";
 			config.faviconUrl = (formData.faviconUrl as string) || config.faviconUrl || "";
+
+			// Handle Resend API key — only update if the value differs from the masked placeholder
+			const submittedResendKey = (formData.resendApiKey as string) ?? "";
+			if (submittedResendKey === "" || submittedResendKey === "__CLEAR__") {
+				// User explicitly cleared the key
+				config.resendApiKey = "";
+			} else if (!submittedResendKey.includes("••••")) {
+				// A real, unmasked key was submitted — store it
+				config.resendApiKey = submittedResendKey;
+			}
+			// If the submitted value contains "••••", it's the masked version echoed back — keep existing key
 			
 			if (formData.logo instanceof File) {
 				const logo = formData.logo;
@@ -53,7 +78,12 @@ export async function updateBranding(c: Context<{ Bindings: Env }>) {
 		}
 
 		await c.env.BUCKET.put("_branding/config.json", JSON.stringify(config));
-		return c.json(config);
+		// Return masked version
+		return c.json({
+			...config,
+			resendApiKey: maskApiKey(config.resendApiKey),
+			resendApiKeyConfigured: Boolean(config.resendApiKey && config.resendApiKey.length > 0),
+		});
 	} catch (e) {
 		return c.json({ error: "Failed to update branding" }, 500);
 	}
