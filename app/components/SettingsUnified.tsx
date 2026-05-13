@@ -1,10 +1,12 @@
-import { Button, Input, useKumoToastManager, Switch, Surface } from "@cloudflare/kumo";
+import { Button, Input, useKumoToastManager, Switch, Surface, TextArea } from "@cloudflare/kumo";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
-import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap } from "lucide-react";
+import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool } from "lucide-react";
+import { useParams } from "react-router";
 
 export default function SettingsUnified() {
 	const { branding, refreshBranding } = useBranding();
+	const { mailboxId } = useParams<{ mailboxId: string }>();
 	const toastManager = useKumoToastManager();
 	
 	const [appName, setAppName] = useState(branding.appName);
@@ -17,7 +19,12 @@ export default function SettingsUnified() {
 	const [logo, setLogo] = useState<File | null>(null);
 	const [favicon, setFavicon] = useState<File | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [activeTab, setActiveTab] = useState<"general" | "branding" | "email" | "developer">("general");
+	const [activeTab, setActiveTab] = useState<"general" | "branding" | "developer" | "agent">("general");
+
+	// Mailbox-specific settings
+	const [agentTone, setAgentTone] = useState("");
+	const [agentSignature, setAgentSignature] = useState("");
+	const [mailboxSettings, setMailboxSettings] = useState<any>(null);
 
 	// Track whether a Resend key is configured on the backend (from the masked response)
 	const resendConfigured = branding.resendApiKeyConfigured ?? false;
@@ -31,26 +38,54 @@ export default function SettingsUnified() {
 		setResendApiKey(branding.resendApiKey);
 	}, [branding]);
 
+	useEffect(() => {
+		if (mailboxId) {
+			fetch(`/api/v1/mailboxes/${mailboxId}`)
+				.then(res => res.json())
+				.then((data: any) => {
+					setMailboxSettings(data.settings);
+					setAgentTone(data.settings.agentTone || "");
+					setAgentSignature(data.settings.agentSignature || "");
+				});
+		}
+	}, [mailboxId]);
+
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsSaving(true);
 		try {
-			const formData = new FormData();
-			formData.append("appName", appName);
-			formData.append("primaryColor", primaryColor);
-			formData.append("darkModeEnabled", String(darkModeEnabled));
-			formData.append("webhookUrl", webhookUrl);
-			formData.append("apiKey", apiKey);
-			formData.append("resendApiKey", resendApiKey);
-			formData.append("logoUrl", branding.logoUrl);
-			formData.append("faviconUrl", branding.faviconUrl);
-			if (logo) formData.append("logo", logo);
-			if (favicon) formData.append("favicon", favicon);
-			const res = await fetch("/api/v1/branding", { method: "POST", body: formData });
-			if (!res.ok) throw new Error();
-			await refreshBranding();
-			setShowResendKey(false);
-			toastManager.add({ title: "Settings saved successfully" });
+			if (activeTab === "agent" && mailboxId) {
+				const updatedSettings = {
+					...mailboxSettings,
+					agentTone,
+					agentSignature,
+				};
+				const res = await fetch(`/api/v1/mailboxes/${mailboxId}`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ settings: updatedSettings }),
+				});
+				if (!res.ok) throw new Error();
+				setMailboxSettings(updatedSettings);
+				toastManager.add({ title: "Agent settings saved" });
+			} else {
+				const formData = new FormData();
+				formData.append("appName", appName);
+				formData.append("primaryColor", primaryColor);
+				formData.append("darkModeEnabled", String(darkModeEnabled));
+				formData.append("webhookUrl", webhookUrl);
+				formData.append("apiKey", apiKey);
+				formData.append("resendApiKey", resendApiKey);
+				formData.append("logoUrl", branding.logoUrl);
+				formData.append("faviconUrl", branding.faviconUrl);
+				if (logo) formData.append("logo", logo);
+				if (favicon) formData.append("favicon", favicon);
+				const res = await fetch("/api/v1/branding", { method: "POST", body: formData });
+				if (!res.ok) throw new Error();
+				await refreshBranding();
+				setShowResendKey(false);
+				toastManager.add({ title: "Global settings saved" });
+			}
 		} catch {
 			toastManager.add({ title: "Error saving settings", variant: "error" });
 		} finally {
@@ -70,6 +105,7 @@ export default function SettingsUnified() {
 					{ id: "general", label: "General", icon: <Settings size={18} /> },
 					{ id: "branding", label: "Branding", icon: <Palette size={18} /> },
 					{ id: "developer", label: "Developer & Email", icon: <Code size={18} /> },
+					...(mailboxId ? [{ id: "agent", label: "Agent Persona", icon: <Bot size={18} /> }] : []),
 				].map((tab) => (
 					<button
 						key={tab.id}
@@ -335,9 +371,41 @@ export default function SettingsUnified() {
 						</div>
 					)}
 
+					{activeTab === "agent" && mailboxId && (
+						<div className="space-y-6">
+							<div>
+								<h3 className="text-xl font-bold text-kumo-default mb-1">Agent Persona</h3>
+								<p className="text-sm text-kumo-subtle">Define how your AI agent should behave for this mailbox.</p>
+							</div>
+
+							<TextArea
+								label="Tone of Voice"
+								value={agentTone}
+								onChange={(e) => setAgentTone(e.target.value)}
+								placeholder="e.g. Professional yet friendly, short and direct, or formal and detailed."
+								className="min-h-[100px]"
+							/>
+
+							<TextArea
+								label="Email Signature"
+								value={agentSignature}
+								onChange={(e) => setAgentSignature(e.target.value)}
+								placeholder="The signature the agent should include at the end of every draft."
+								className="min-h-[100px]"
+							/>
+							
+							<div className="p-4 rounded-2xl border border-kumo-line bg-kumo-recessed/50 flex gap-3">
+								<PenTool className="text-kumo-brand shrink-0" size={20} />
+								<p className="text-xs text-kumo-subtle leading-relaxed">
+									Your agent will use these preferences to craft drafts. The tone will influence the language used, and the signature will be appended to the end of each message.
+								</p>
+							</div>
+						</div>
+					)}
+
 					<div className="pt-10 flex justify-end">
 						<Button type="submit" variant="primary" loading={isSaving} className="px-12 h-12 text-base shadow-lg shadow-kumo-brand/20">
-							Save All Changes
+							Save Changes
 						</Button>
 					</div>
 				</form>

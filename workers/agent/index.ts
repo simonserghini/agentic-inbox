@@ -92,19 +92,40 @@ Use discard_draft to delete drafts that the operator rejects or that are no long
  * Falls back to DEFAULT_SYSTEM_PROMPT if none is configured.
  */
 async function getSystemPrompt(env: Env, mailboxId: string): Promise<string> {
+	let customPrompt = "";
+	let agentTone = "";
+	let agentSignature = "";
+
 	try {
 		const key = `mailboxes/${mailboxId}.json`;
 		const obj = await env.BUCKET.get(key);
 		if (obj) {
-			const settings = await obj.json<Record<string, unknown>>();
+			const settings = await obj.json<Record<string, any>>();
 			if (typeof settings.agentSystemPrompt === "string" && settings.agentSystemPrompt.trim()) {
-				return settings.agentSystemPrompt;
+				customPrompt = settings.agentSystemPrompt;
+			}
+			if (typeof settings.agentTone === "string" && settings.agentTone.trim()) {
+				agentTone = settings.agentTone;
+			}
+			if (typeof settings.agentSignature === "string" && settings.agentSignature.trim()) {
+				agentSignature = settings.agentSignature;
 			}
 		}
 	} catch {
 		// Fall through to default
 	}
-	return DEFAULT_SYSTEM_PROMPT;
+
+	let finalPrompt = customPrompt || DEFAULT_SYSTEM_PROMPT;
+
+	if (agentTone) {
+		finalPrompt += `\n\n## Custom Tone\nYou MUST write in the following tone: ${agentTone}`;
+	}
+
+	if (agentSignature) {
+		finalPrompt += `\n\n## Custom Signature\nAPPEND this signature to the end of every email draft: ${agentSignature}`;
+	}
+
+	return finalPrompt;
 }
 
 function createEmailTools(env: Env, mailboxId: string) {
