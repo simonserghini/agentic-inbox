@@ -2,9 +2,10 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { PaperclipIcon, FileIcon, ImageIcon } from "@phosphor-icons/react";
+import { PaperclipIcon, FileIcon, ImageIcon, RobotIcon } from "@phosphor-icons/react";
 import { formatBytes, getAttachmentUrl, getNonInlineAttachments } from "~/lib/utils";
 import type { Attachment } from "~/types";
+import { useUIStore } from "~/hooks/useUIStore";
 
 interface EmailAttachmentListProps {
 	mailboxId?: string;
@@ -23,6 +24,7 @@ export default function EmailAttachmentList({
 	className,
 	showHeading = false,
 }: EmailAttachmentListProps) {
+	const { setAgentCommand } = useUIStore();
 	if (!mailboxId) return null;
 
 	const files = getNonInlineAttachments(attachments);
@@ -45,18 +47,28 @@ export default function EmailAttachmentList({
 
 					if (isImage && onPreviewImage) {
 						return (
-							<button
-								key={attachment.id}
-								type="button"
-								onClick={() => onPreviewImage(url, attachment.filename)}
-								className="flex items-center gap-2 rounded-md border border-kumo-line px-3 py-2 transition-colors hover:bg-kumo-tint text-sm text-left"
-							>
-								<ImageIcon size={16} className="text-kumo-subtle shrink-0" />
-								<span className="text-kumo-default font-medium truncate max-w-[140px]">
-									{attachment.filename}
-								</span>
-								<span className="text-kumo-subtle">{formatBytes(attachment.size)}</span>
-							</button>
+							<div key={attachment.id} className="flex flex-col gap-1">
+								<button
+									key={attachment.id}
+									type="button"
+									onClick={() => onPreviewImage(url, attachment.filename)}
+									className="flex items-center gap-2 rounded-md border border-kumo-line px-3 py-2 transition-colors hover:bg-kumo-tint text-sm text-left"
+								>
+									<ImageIcon size={16} className="text-kumo-subtle shrink-0" />
+									<span className="text-kumo-strong font-medium truncate max-w-[140px]">
+										{attachment.filename}
+									</span>
+									<span className="text-kumo-subtle">{formatBytes(attachment.size)}</span>
+								</button>
+								<button
+									type="button"
+									onClick={() => setAgentCommand(`Please read and analyze this attachment: ${attachment.filename} (ID: ${attachment.id}) in email ${emailId}`)}
+									className="flex items-center justify-center gap-1.5 py-1 px-2 rounded bg-kumo-brand/10 text-[11px] font-bold text-kumo-brand hover:bg-kumo-brand/20 transition-all border border-kumo-brand/20"
+								>
+									<RobotIcon size={12} weight="bold" />
+									Read with AI
+								</button>
+							</div>
 						);
 					}
 

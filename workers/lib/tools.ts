@@ -474,6 +474,45 @@ export async function toolSemanticSearch(
 	}
 }
 
+// ── read_attachment ────────────────────────────────────────────────
+
+export async function toolReadAttachment(
+	env: Env,
+	mailboxId: string,
+	emailId: string,
+	attachmentId: string,
+) {
+	const stub = getMailboxStub(env, mailboxId);
+	const attachment = await (stub as any).getAttachment(attachmentId);
+	if (!attachment) return { error: "Attachment not found" };
+
+	const obj = await env.BUCKET.get(`attachments/${emailId}/${attachmentId}/${attachment.filename}`);
+	if (!obj) return { error: "Attachment file not found in storage" };
+
+	const buffer = await obj.arrayBuffer();
+	const isImage = attachment.mimetype?.startsWith("image/");
+
+	if (isImage) {
+		try {
+			const response = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+				image: [...new Uint8Array(buffer)],
+				prompt: "What is in this image? Extract all visible text, including dates, names, prices, and reference numbers. If it is a receipt or invoice, summarize the key details.",
+			}) as { response: string };
+			
+			return {
+				filename: attachment.filename,
+				analysis: response.response,
+				message: `Successfully analyzed image: ${attachment.filename}`
+			};
+		} catch (e) {
+			console.error("Vision AI failed:", (e as Error).message);
+			return { error: `Vision AI analysis failed: ${(e as Error).message}` };
+		}
+	}
+
+	return { error: "AI reading is currently only supported for image attachments." };
+}
+
 // ── send_reply ─────────────────────────────────────────────────────
 
 export async function toolSendReply(

@@ -30,6 +30,7 @@ import {
 	toolDiscardDraft,
 	toolScanUnanswered,
 	toolSemanticSearch,
+	toolReadAttachment,
 } from "../lib/tools";
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
@@ -307,6 +308,18 @@ function createEmailTools(env: Env, mailboxId: string) {
 			}),
 			execute: async ({ query }): Promise<unknown> => {
 				return toolSemanticSearch(env, mailboxId, query);
+			},
+		}),
+
+		read_attachment: defineTool({
+			description:
+				"Read and analyze an image attachment using AI. Use this to extract text from receipts, invoices, screenshots, or other images. The user must provide the emailId and attachmentId.",
+			parameters: z.object({
+				emailId: z.string().describe("The ID of the email containing the attachment"),
+				attachmentId: z.string().describe("The ID of the attachment to read"),
+			}),
+			execute: async ({ emailId, attachmentId }): Promise<unknown> => {
+				return toolReadAttachment(env, mailboxId, emailId, attachmentId);
 			},
 		}),
 	};
