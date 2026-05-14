@@ -8,7 +8,131 @@ body {
   margin: 0;
 }
 
-/* TipTap list styles */
+::selection {
+  background-color: color-mix(in srgb, var(--color-kumo-brand) 30%, transparent);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-kumo-fill) 25%,
+    color-mix(in srgb, var(--color-kumo-fill) 60%, var(--color-kumo-base)) 50%,
+    var(--color-kumo-fill) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInSlideUp 0.3s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.25s ease-out both;
+}
+
+.animate-sparkle {
+  animation: sparkle 1s ease-out both;
+}
+
+.stagger-1 { animation-delay: 0.02s; }
+.stagger-2 { animation-delay: 0.04s; }
+.stagger-3 { animation-delay: 0.06s; }
+.stagger-4 { animation-delay: 0.08s; }
+.stagger-5 { animation-delay: 0.10s; }
+.stagger-6 { animation-delay: 0.12s; }
+.stagger-7 { animation-delay: 0.14s; }
+.stagger-8 { animation-delay: 0.16s; }
+.stagger-9 { animation-delay: 0.18s; }
+.stagger-10 { animation-delay: 0.20s; }
+.stagger-11 { animation-delay: 0.22s; }
+.stagger-12 { animation-delay: 0.24s; }
+.stagger-13 { animation-delay: 0.26s; }
+.stagger-14 { animation-delay: 0.28s; }
+.stagger-15 { animation-delay: 0.30s; }
+.stagger-16 { animation-delay: 0.32s; }
+.stagger-17 { animation-delay: 0.34s; }
+.stagger-18 { animation-delay: 0.36s; }
+.stagger-19 { animation-delay: 0.38s; }
+.stagger-20 { animation-delay: 0.40s; }
+
+button:active {
+  transform: scale(0.97);
+}
+
+.glass {
+  background: color-mix(in srgb, var(--color-kumo-base) 70%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hover-card {
+  background: color-mix(in srgb, var(--color-kumo-recessed) 95%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-kumo-line);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--color-kumo-line) 20%, transparent);
+}
+
+.email-row-enter {
+  animation: fadeInSlideUp 0.25s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .ProseMirror ul {
   list-style-type: disc;
   padding-left: 1.5em;
