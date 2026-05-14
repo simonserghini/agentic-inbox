@@ -3,11 +3,12 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Button, Input, Tooltip } from "@cloudflare/kumo";
-import { GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, XIcon } from "@phosphor-icons/react";
+import { BellIcon, BellRingingIcon, BellSlashIcon, GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, XIcon } from "@phosphor-icons/react";
 import ThemeToggle from "~/components/ThemeToggle";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useUIStore } from "~/hooks/useUIStore";
+import { useNotifications } from "~/hooks/useNotifications";
 
 export default function Header() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -17,6 +18,7 @@ export default function Header() {
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
 	const { toggleSidebar, toggleAgentPanel, isAgentPanelOpen } = useUIStore();
+	const { permission, requestPermission } = useNotifications();
 
 	// Sync search input with URL query param so it stays populated
 	const urlQuery = searchParams.get("q") || "";
@@ -120,6 +122,36 @@ export default function Header() {
 			)}
 
 			<div className="flex items-center gap-1 ml-auto shrink-0">
+				{permission !== "unsupported" && (
+					<Tooltip
+						content={
+							permission === "denied"
+								? "Notifications blocked — enable in browser settings"
+								: permission === "granted"
+									? "Notifications enabled"
+									: "Enable notifications"
+						}
+						side="bottom"
+						asChild
+					>
+						<Button
+							variant="ghost"
+							shape="square"
+							size="sm"
+							icon={
+								permission === "denied" ? (
+									<BellSlashIcon size={18} className="text-kumo-subtle" />
+								) : permission === "granted" ? (
+									<BellRingingIcon size={18} className="text-kumo-brand" />
+								) : (
+									<BellIcon size={18} />
+								)
+							}
+							onClick={permission === "default" ? requestPermission : undefined}
+							aria-label="Notification settings"
+						/>
+					</Tooltip>
+				)}
 				<Tooltip content={isAgentPanelOpen ? "Hide agent panel" : "Show agent panel"} side="bottom" asChild>
 					<Button
 						variant={isAgentPanelOpen ? "secondary" : "ghost"}

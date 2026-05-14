@@ -32,6 +32,7 @@ import { useFolders } from "~/queries/folders";
 import { queryKeys } from "~/queries/keys";
 import { useUIStore } from "~/hooks/useUIStore";
 import { useKeyboardNavigation } from "~/hooks/useKeyboardNavigation";
+import { useNotifications, useNewEmailNotifications } from "~/hooks/useNotifications";
 import type { Email } from "~/types";
 
 const PAGE_SIZE = 25;
@@ -267,10 +268,16 @@ export default function EmailListRoute() {
 		[folder, page],
 	);
 
+	const { notify } = useNotifications();
+
 	const {
 		data: emailData,
 		isFetching: isRefreshing,
 	} = useEmails(mailboxId, params, { refetchInterval: 30_000 });
+
+	useNewEmailNotifications(emailIds, folderName, (title, body) => {
+		notify(title, body);
+	});
 
 	const emails = emailData?.emails ?? [];
 	const totalCount = emailData?.totalCount ?? 0;
