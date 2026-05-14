@@ -1,7 +1,7 @@
 import { Button, Input, useKumoToastManager, Switch, Surface, TextArea } from "@cloudflare/kumo";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
-import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool } from "lucide-react";
+import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool, Sparkles, Terminal } from "lucide-react";
 import { useParams } from "react-router";
 
 export default function SettingsUnified() {
@@ -24,6 +24,9 @@ export default function SettingsUnified() {
 	// Mailbox-specific settings
 	const [agentTone, setAgentTone] = useState("");
 	const [agentSignature, setAgentSignature] = useState("");
+	const [promptCategorization, setPromptCategorization] = useState("");
+	const [promptVision, setPromptVision] = useState("");
+	const [promptAutoDraft, setPromptAutoDraft] = useState("");
 	const [mailboxSettings, setMailboxSettings] = useState<any>(null);
 
 	// Track whether a Resend key is configured on the backend (from the masked response)
@@ -46,6 +49,9 @@ export default function SettingsUnified() {
 					setMailboxSettings(data.settings);
 					setAgentTone(data.settings.agentTone || "");
 					setAgentSignature(data.settings.agentSignature || "");
+					setPromptCategorization(data.settings.promptCategorization || "");
+					setPromptVision(data.settings.promptVision || "");
+					setPromptAutoDraft(data.settings.promptAutoDraft || "");
 				});
 		}
 	}, [mailboxId]);
@@ -59,6 +65,9 @@ export default function SettingsUnified() {
 					...mailboxSettings,
 					agentTone,
 					agentSignature,
+					promptCategorization,
+					promptVision,
+					promptAutoDraft,
 				};
 				const res = await fetch(`/api/v1/mailboxes/${mailboxId}`, {
 					method: "PUT",
@@ -105,7 +114,7 @@ export default function SettingsUnified() {
 					{ id: "general", label: "General", icon: <Settings size={18} /> },
 					{ id: "branding", label: "Branding", icon: <Palette size={18} /> },
 					{ id: "developer", label: "Developer & Email", icon: <Code size={18} /> },
-					...(mailboxId ? [{ id: "agent", label: "Agent Persona", icon: <Bot size={18} /> }] : []),
+					...(mailboxId ? [{ id: "agent", label: "Agent & Prompts", icon: <Bot size={18} /> }] : []),
 				].map((tab) => (
 					<button
 						key={tab.id}
@@ -262,7 +271,7 @@ export default function SettingsUnified() {
 										<div className="relative flex-1">
 											<Input
 												value={resendApiKey === "__CLEAR__" ? "" : resendApiKey}
-												onChange={(e) => setResendApiKey(e.target.value)}
+												onChange={(e) => setPromptAutoDraft(e.target.value)}
 												type={showResendKey ? "text" : "password"}
 												placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxx"
 												className="font-mono text-xs h-11 pr-10"
@@ -372,32 +381,71 @@ export default function SettingsUnified() {
 					)}
 
 					{activeTab === "agent" && mailboxId && (
-						<div className="space-y-6">
-							<div>
-								<h3 className="text-xl font-bold text-kumo-default mb-1">Agent Persona</h3>
-								<p className="text-sm text-kumo-subtle">Define how your AI agent should behave for this mailbox.</p>
+						<div className="space-y-8">
+							<div className="space-y-6">
+								<div>
+									<h3 className="text-xl font-bold text-kumo-default mb-1 flex items-center gap-2">
+										<Sparkles size={20} className="text-kumo-brand" />
+										Persona & Style
+									</h3>
+									<p className="text-sm text-kumo-subtle">Define how your AI agent should behave for this mailbox.</p>
+								</div>
+
+								<TextArea
+									label="Tone of Voice"
+									value={agentTone}
+									onChange={(e) => setAgentTone(e.target.value)}
+									placeholder="e.g. Professional yet friendly, short and direct, or formal and detailed."
+									className="min-h-[80px]"
+								/>
+
+								<TextArea
+									label="Email Signature"
+									value={agentSignature}
+									onChange={(e) => setAgentSignature(e.target.value)}
+									placeholder="The signature the agent should include at the end of every draft."
+									className="min-h-[80px]"
+								/>
 							</div>
 
-							<TextArea
-								label="Tone of Voice"
-								value={agentTone}
-								onChange={(e) => setAgentTone(e.target.value)}
-								placeholder="e.g. Professional yet friendly, short and direct, or formal and detailed."
-								className="min-h-[100px]"
-							/>
+							<div className="border-t border-kumo-line pt-8 space-y-6">
+								<div>
+									<h3 className="text-xl font-bold text-kumo-default mb-1 flex items-center gap-2">
+										<Terminal size={20} className="text-kumo-brand" />
+										Advanced Prompt Engineering
+									</h3>
+									<p className="text-sm text-kumo-subtle">Fully customize the core logic guiding the AI.</p>
+								</div>
 
-							<TextArea
-								label="Email Signature"
-								value={agentSignature}
-								onChange={(e) => setAgentSignature(e.target.value)}
-								placeholder="The signature the agent should include at the end of every draft."
-								className="min-h-[100px]"
-							/>
+								<TextArea
+									label="Auto-Categorization Logic"
+									value={promptCategorization}
+									onChange={(e) => setPromptCategorization(e.target.value)}
+									placeholder="Instructions for how to sort incoming emails into folders."
+									className="min-h-[120px] font-mono text-xs"
+								/>
+
+								<TextArea
+									label="Vision AI (OCR) Instructions"
+									value={promptVision}
+									onChange={(e) => setPromptVision(e.target.value)}
+									placeholder="How the AI should interpret and extract data from attachments."
+									className="min-h-[120px] font-mono text-xs"
+								/>
+
+								<TextArea
+									label="Auto-Draft Orchestration"
+									value={promptAutoDraft}
+									onChange={(e) => setPromptAutoDraft(e.target.value)}
+									placeholder="The specialized prompt used when a new email arrives."
+									className="min-h-[120px] font-mono text-xs"
+								/>
+							</div>
 							
 							<div className="p-4 rounded-2xl border border-kumo-line bg-kumo-recessed/50 flex gap-3">
 								<PenTool className="text-kumo-brand shrink-0" size={20} />
 								<p className="text-xs text-kumo-subtle leading-relaxed">
-									Your agent will use these preferences to craft drafts. The tone will influence the language used, and the signature will be appended to the end of each message.
+									Your agent will use these preferences to craft drafts. Changes here apply immediately to all future AI actions for this mailbox.
 								</p>
 							</div>
 						</div>

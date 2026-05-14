@@ -329,6 +329,22 @@ function createEmailTools(env: Env, mailboxId: string) {
 // SEND_EMAIL binding shape and the AIChatAgent constraint.  The actual env
 // is fully typed inside the tools via the closure.
 export class EmailAgent extends AIChatAgent<any> {
+	/**
+	 * Fetch all custom settings for a mailbox from its R2 configuration.
+	 */
+	async getMailboxConfig(env: Env, mailboxId: string) {
+		try {
+			const key = `mailboxes/${mailboxId}.json`;
+			const obj = await env.BUCKET.get(key);
+			if (obj) {
+				return await obj.json<Record<string, any>>();
+			}
+		} catch {
+			// ignore
+		}
+		return {};
+	}
+
 	async onChatMessage(onFinish: any) {
 		const env = this.env as Env;
 		const mailboxId = this.name;
@@ -392,7 +408,18 @@ export class EmailAgent extends AIChatAgent<any> {
 		const env = this.env as Env;
 		const workersai = createWorkersAI({ binding: env.AI });
 		const tools = createEmailTools(env, emailData.mailboxId);
-		const systemPrompt = await getSystemPrompt(env, emailData.mailboxId);
+		
+		// Fetch comprehensive mailbox config
+		const config = await this.getMailboxConfig(env, emailData.mailboxId);
+		
+		// Build System Prompt
+		let finalPrompt = config.agentSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+		if (config.agentTone) {
+			finalPrompt += `\n\n## Custom Tone\nYou MUST write in the following tone: ${config.agentTone}`;
+		}
+		if (config.agentSignature) {
+			finalPrompt += `\n\n## Custom Signature\nAPPEND this signature to the end of every email draft: ${config.agentSignature}`;
+		}
 
 		// Pre-read the email and thread so the agent has full context
 		// without needing to waste tool calls discovering it
@@ -433,13 +460,15 @@ export class EmailAgent extends AIChatAgent<any> {
 
 				// -- Auto-Categorization --
 				try {
-					const classificationResult = await generateText({
-						model: workersai("@cf/meta/llama-3.1-8b-instruct"),
-						prompt: `Classify this email into one of these categories: Invoices, Travel, Newsletters, Action Required, or Other.
+					const catPrompt = config.promptCategorization || `Classify this email into one of these categories: Invoices, Travel, Newsletters, Action Required, or Other.
 Only respond with the category name. No other text.
 
 Subject: ${emailData.subject}
-Body Snippet: ${emailBody.substring(0, 500)}`,
+Body Snippet: ${emailBody.substring(0, 500)}`;
+
+					const classificationResult = await generateText({
+						model: workersai("@cf/meta/llama-3.1-8b-instruct"),
+						prompt: catPrompt,
 					});
 
 					const category = classificationResult.text.trim().replace(/[.,!]/g, "");
@@ -506,7 +535,7 @@ Body Snippet: ${emailBody.substring(0, 500)}`,
 			console.warn("Pre-read failed, agent will use tools:", (e as Error).message);
 		}
 
-		let autoPrompt = `A new email just arrived. Draft an appropriate response using draft_reply.
+		let autoPrompt = config.promptAutoDraft || `A new email just arrived. Draft an appropriate response using draft_reply.
 
 Email details:
 - Mailbox: ${emailData.mailboxId}
@@ -518,20 +547,15 @@ Email details:
 Email body:
 ${emailBody || "(could not pre-read — use get_email to read it)"}`;
 
-		if (threadContext) {
-			autoPrompt += `
-
-Full thread history (${emailData.threadId}):
-${threadContext}`;
-		} else {
-			autoPrompt += `
-
-This is the first message in the thread (no prior conversation).`;
+		if (threadContext && !config.promptAutoDraft) {
+			autoPrompt += `\n\nFull thread history (${emailData.threadId}):\n${threadContext}`;
+		} else if (!config.promptAutoDraft) {
+			autoPrompt += `\n\nThis is the first message in the thread (no prior conversation).`;
 		}
 
-		autoPrompt += `
-
-Based on the email content and thread context above, draft a reply using draft_reply. If you need more context, use get_thread with thread ID "${emailData.threadId}".`;
+		if (!config.promptAutoDraft) {
+			autoPrompt += `\n\nBased on the email content and thread context above, draft a reply using draft_reply. If you need more context, use get_thread with thread ID "${emailData.threadId}".`;
+		}
 
 		// Fresh context for auto-draft -- don't include prior chat history
 		// to avoid confusing the model with old messages and tool calls
@@ -547,7 +571,7 @@ Based on the email content and thread context above, draft a reply using draft_r
 		try {
 			const result = await generateText({
 				model: workersai("@cf/moonshotai/kimi-k2.5"),
-				system: systemPrompt,
+				system: finalPrompt,
 				messages: await convertToModelMessages(messages),
 				tools,
 				stopWhen: stepCountIs(5),

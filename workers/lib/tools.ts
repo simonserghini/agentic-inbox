@@ -494,9 +494,17 @@ export async function toolReadAttachment(
 
 	if (isImage) {
 		try {
+			// Fetch custom vision prompt
+			let visionPrompt = "What is in this image? Extract all visible text, including dates, names, prices, and reference numbers. If it is a receipt or invoice, summarize the key details.";
+			const configObj = await env.BUCKET.get(`mailboxes/${mailboxId}.json`);
+			if (configObj) {
+				const settings = await configObj.json<Record<string, any>>();
+				if (settings.promptVision) visionPrompt = settings.promptVision;
+			}
+
 			const response = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
 				image: [...new Uint8Array(buffer)],
-				prompt: "What is in this image? Extract all visible text, including dates, names, prices, and reference numbers. If it is a receipt or invoice, summarize the key details.",
+				prompt: visionPrompt,
 			}) as { response: string };
 			
 			return {
