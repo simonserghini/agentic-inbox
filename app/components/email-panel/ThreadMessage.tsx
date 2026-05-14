@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Badge, Button, Tooltip } from "@cloudflare/kumo";
+import { Badge, Button, Tooltip, Surface } from "@cloudflare/kumo";
 import {
 	CaretDownIcon,
 	CaretUpIcon,
@@ -10,6 +10,7 @@ import {
 	PaperPlaneTiltIcon,
 	PencilSimpleIcon,
 	TrashIcon,
+	MagicWandIcon,
 } from "@phosphor-icons/react";
 import EmailAttachmentList from "~/components/EmailAttachmentList";
 import EmailIframe from "~/components/EmailIframe";
@@ -20,6 +21,7 @@ import {
 	stripHtml,
 } from "~/lib/utils";
 import type { Email } from "~/types";
+import { useUIStore } from "~/hooks/useUIStore";
 
 interface ThreadMessageProps {
 	email: Email;
@@ -35,6 +37,31 @@ interface ThreadMessageProps {
 	onDeleteDraft?: () => void;
 	onViewSource?: () => void;
 	onPreviewImage?: (url: string, filename: string) => void;
+}
+
+function QuickDraftSuggestions({ onSuggest }: { onSuggest: (prompt: string) => void }) {
+	const suggestions = [
+		{ label: "Accept", prompt: "Draft a polite acceptance to this email." },
+		{ label: "Request Info", prompt: "Reply asking for more specific details and next steps." },
+		{ label: "Decline", prompt: "Draft a professional but firm decline for this request." },
+	];
+
+	return (
+		<div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-kumo-line/50">
+			<span className="text-[10px] font-bold text-kumo-subtle uppercase tracking-widest w-full mb-1">AI Quick Drafts</span>
+			{suggestions.map((s) => (
+				<button
+					key={s.label}
+					type="button"
+					onClick={() => onSuggest(s.prompt)}
+					className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-kumo-brand/20 bg-kumo-brand/5 text-xs font-medium text-kumo-brand hover:bg-kumo-brand hover:text-white hover:border-kumo-brand transition-all shadow-sm"
+				>
+					<MagicWandIcon size={14} weight="bold" />
+					{s.label}
+				</button>
+			))}
+		</div>
+	);
 }
 
 function Avatar({ isDraft, isSelf, sender }: { isDraft?: boolean; isSelf: boolean; sender: string }) {
@@ -69,6 +96,7 @@ export default function ThreadMessage({
 	onPreviewImage,
 }: ThreadMessageProps) {
 	const isSelf = email.sender === mailboxEmail;
+	const { setAgentCommand } = useUIStore();
 	const containerClassName = `${!isLast ? "border-b border-kumo-line" : ""} ${isDraft ? "border-l-2 border-l-kumo-warning bg-kumo-warning/[0.02]" : ""}`;
 	const senderLabel = isDraft ? "Draft reply" : isSelf ? "You" : email.sender;
 
@@ -204,6 +232,14 @@ export default function ThreadMessage({
 								Discard
 							</Button>
 						)}
+					</div>
+				)}
+
+				{!isDraft && !isSelf && isExpanded && isLast && (
+					<div className="md:ml-[42px]">
+						<QuickDraftSuggestions 
+							onSuggest={(prompt) => setAgentCommand(`${prompt} (Email ID: ${email.id})`)} 
+						/>
 					</div>
 				)}
 
