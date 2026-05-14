@@ -21,6 +21,7 @@ import { Folders } from "../shared/folders";
 import type { Env } from "./types";
 import { requireMailbox, type MailboxContext } from "./lib/mailbox";
 import { getBranding, updateBranding, getBrandingFile } from "./routes/branding";
+import { indexEmail } from "./lib/ai";
 
 type AppContext = Context<MailboxContext>;
 
@@ -449,6 +450,14 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		in_reply_to: inReplyTo, email_references: emailReferences.length > 0 ? JSON.stringify(emailReferences) : null,
 		thread_id: threadId, message_id: originalMessageId, raw_headers: JSON.stringify(parsedEmail.headers),
 	}, attachmentData);
+
+	// Index for semantic search
+	ctx.waitUntil(indexEmail(env, mailboxId, {
+		id: messageId,
+		subject: parsedEmail.subject || "",
+		body: parsedEmail.html || parsedEmail.text || "",
+		date: new Date().toISOString(),
+	}));
 
 	const preview = parsedEmail.text ? parsedEmail.text.substring(0, 200) + (parsedEmail.text.length > 200 ? "..." : "") : "(No Content)";
 	const fromStr = parsedEmail.from?.address || parsedEmail.from?.name || "Unknown Sender";

@@ -10,6 +10,45 @@
  */
 
 import { escapeHtml, stripHtmlToText, textToHtml } from "./email-helpers";
+import type { Env } from "../types";
+
+// ── Semantic Indexing ──────────────────────────────────────────────
+
+export async function indexEmail(
+	env: Env,
+	mailboxId: string,
+	email: { id: string; subject: string; body: string; date: string }
+) {
+	if (!env.VECTOR_INDEX) return;
+
+	// Combine subject and snippet for embedding
+	const plainText = stripHtmlToText(email.body);
+	const text = `Subject: ${email.subject}\n\n${plainText.substring(0, 3000)}`;
+	
+	try {
+		const embeddings = await env.AI.run("@cf/baai/bge-small-en-v1.5", {
+			text: [text],
+		}) as { data: number[][] };
+		
+		const values = embeddings.data[0];
+		if (!values) return;
+
+		await env.VECTOR_INDEX.upsert([
+			{
+				id: `${mailboxId}:${email.id}`,
+				values: values,
+				metadata: {
+					mailboxId,
+					emailId: email.id,
+					subject: email.subject,
+					date: email.date,
+				},
+			},
+		]);
+	} catch (e) {
+		console.error("Semantic indexing failed:", (e as Error).message);
+	}
+}
 
 // ── Prompt Injection Scanner ───────────────────────────────────────
 

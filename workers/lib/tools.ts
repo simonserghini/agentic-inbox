@@ -433,6 +433,47 @@ export async function toolScanUnanswered(
 	};
 }
 
+// ── semantic_search ────────────────────────────────────────────────
+
+export async function toolSemanticSearch(
+	env: Env,
+	mailboxId: string,
+	query: string,
+) {
+	if (!env.VECTOR_INDEX) {
+		return { error: "Semantic search is not configured (missing VECTOR_INDEX)." };
+	}
+
+	try {
+		const embeddings = await env.AI.run("@cf/baai/bge-small-en-v1.5", {
+			text: [query],
+		}) as { data: number[][] };
+
+		const values = embeddings.data[0];
+		if (!values) return { error: "Failed to generate embeddings for query." };
+
+		const results = await env.VECTOR_INDEX.query(values, {
+			topK: 10,
+			filter: { mailboxId },
+		});
+
+		const matches = results.matches.map((m) => ({
+			emailId: m.metadata?.emailId,
+			subject: m.metadata?.subject,
+			date: m.metadata?.date,
+			score: m.score,
+		}));
+
+		return {
+			results: matches,
+			message: `Found ${matches.length} semantically relevant emails.`,
+		};
+	} catch (e) {
+		console.error("Semantic search failed:", (e as Error).message);
+		return { error: `Semantic search failed: ${(e as Error).message}` };
+	}
+}
+
 // ── send_reply ─────────────────────────────────────────────────────
 
 export async function toolSendReply(

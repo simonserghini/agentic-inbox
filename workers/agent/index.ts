@@ -29,6 +29,7 @@ import {
 	toolMoveEmail,
 	toolDiscardDraft,
 	toolScanUnanswered,
+	toolSemanticSearch,
 } from "../lib/tools";
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
@@ -295,6 +296,17 @@ function createEmailTools(env: Env, mailboxId: string) {
 			parameters: z.object({}),
 			execute: async (): Promise<unknown> => {
 				return toolScanUnanswered(env, mailboxId);
+			},
+		}),
+
+		semantic_search: defineTool({
+			description:
+				"Search for emails using AI-powered semantic search. This finds emails based on meaning and context, not just keywords. Use this when the user asks vague questions like 'find that receipt from my trip' or 'what did we discuss about the project'.",
+			parameters: z.object({
+				query: z.string().describe("The search query in natural language"),
+			}),
+			execute: async ({ query }): Promise<unknown> => {
+				return toolSemanticSearch(env, mailboxId, query);
 			},
 		}),
 	};
