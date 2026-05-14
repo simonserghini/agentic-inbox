@@ -312,6 +312,16 @@ function AgentChatConnected({
 		useAgentChat({ agent });
 	const isStreaming = status === "streaming" || status === "submitted";
 
+	const agentCommand = useUIStore((state) => state.agentCommand);
+	const setAgentCommand = useUIStore((state) => state.setAgentCommand);
+
+	useEffect(() => {
+		if (agentCommand) {
+			sendMessage({ text: agentCommand });
+			setAgentCommand(null);
+		}
+	}, [agentCommand, sendMessage, setAgentCommand]);
+
 	useEffect(() => {
 		const el = scrollRef.current;
 		if (el) el.scrollTop = el.scrollHeight;

@@ -13,6 +13,7 @@ import {
 	EnvelopeOpenIcon,
 	EnvelopeSimpleIcon,
 	FolderSimpleIcon,
+	MagicWandIcon,
 	PaperPlaneTiltIcon,
 	PencilSimpleIcon,
 	StarIcon,
@@ -39,6 +40,7 @@ interface EmailPanelToolbarProps {
 	onMove: (folderId: string) => void;
 	onViewSource: () => void;
 	onDelete: () => void;
+	onSummarize: () => void;
 }
 
 export default function EmailPanelToolbar({
@@ -58,6 +60,7 @@ export default function EmailPanelToolbar({
 	onMove,
 	onViewSource,
 	onDelete,
+	onSummarize,
 }: EmailPanelToolbarProps) {
 	return (
 		<div className="flex items-center gap-1 px-3 py-2 border-b border-kumo-line shrink-0 md:px-4">
@@ -121,6 +124,17 @@ export default function EmailPanelToolbar({
 							icon={<ArrowBendUpRightIcon size={18} />}
 							onClick={onForward}
 							aria-label="Forward"
+						/>
+					</Tooltip>
+					<Tooltip content="Summarize Thread" side="bottom" asChild>
+						<Button
+							variant="ghost"
+							shape="square"
+							size="sm"
+							icon={<MagicWandIcon size={18} />}
+							onClick={onSummarize}
+							aria-label="Summarize"
+							className="text-kumo-brand"
 						/>
 					</Tooltip>
 				</>

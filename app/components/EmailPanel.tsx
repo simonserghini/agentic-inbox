@@ -44,7 +44,7 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 	const { data: currentMailbox } = useMailbox(mailboxId) as {
 		data?: Mailbox;
 	};
-	const { closePanel, startCompose } = useUIStore();
+	const { closePanel, startCompose, setAgentCommand } = useUIStore();
 	const toastManager = useKumoToastManager();
 	const [isSending, setIsSending] = useState(false);
 	const [sourceViewEmail, setSourceViewEmail] = useState<Email | null>(null);
@@ -173,6 +173,9 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 				onMove={handleMove}
 				onViewSource={() => setSourceViewEmail(email)}
 				onDelete={handleDelete}
+				onSummarize={() => {
+					setAgentCommand(`Summarize the current thread: ${email.thread_id}`);
+				}}
 			/>
 
 			<EmailPanelHeader
