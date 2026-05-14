@@ -349,7 +349,7 @@ function AgentChatConnected({
 	const suggestedPrompts = [
 		"Show me the latest inbox emails",
 		"Any unread emails?",
-		"Draft a response to the latest email",
+		"Scan for unanswered emails",
 	];
 
 	return (

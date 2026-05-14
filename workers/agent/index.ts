@@ -28,6 +28,7 @@ import {
 	toolMarkEmailRead,
 	toolMoveEmail,
 	toolDiscardDraft,
+	toolScanUnanswered,
 } from "../lib/tools";
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
@@ -285,6 +286,15 @@ function createEmailTools(env: Env, mailboxId: string) {
 			}),
 			execute: async ({ draftId }): Promise<unknown> => {
 				return toolDiscardDraft(env, mailboxId, draftId);
+			},
+		}),
+
+		scan_unanswered: defineTool({
+			description:
+				"Scan the inbox for emails older than 48 hours that haven't received a reply yet. Use this to help the user stay on top of their inbox.",
+			parameters: z.object({}),
+			execute: async (): Promise<unknown> => {
+				return toolScanUnanswered(env, mailboxId);
 			},
 		}),
 	};

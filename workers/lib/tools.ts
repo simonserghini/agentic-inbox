@@ -388,6 +388,51 @@ export async function toolDeleteEmail(
 	return { status: "deleted", emailId };
 }
 
+// ── scan_unanswered ────────────────────────────────────────────────
+
+export async function toolScanUnanswered(
+	env: Env,
+	mailboxId: string,
+) {
+	const stub = getMailboxStub(env, mailboxId);
+	const emails = (await stub.getEmails({
+		folder: Folders.INBOX,
+		limit: 50,
+	})) as EmailFull[];
+
+	const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+	const staleEmails = [];
+
+	for (const email of emails) {
+		const emailDate = new Date(email.date);
+		if (emailDate < fortyEightHoursAgo && !email.read) {
+			// Check if we replied in this thread
+			const thread = (await getFullThread(stub, email.thread_id)) as EmailFull[];
+			const hasReply = thread.some(
+				(m) => m.sender.toLowerCase() === mailboxId.toLowerCase() && new Date(m.date) > emailDate
+			);
+
+			if (!hasReply) {
+				staleEmails.push({
+					id: email.id,
+					subject: email.subject,
+					sender: email.sender,
+					date: email.date,
+					threadId: email.thread_id,
+				});
+			}
+		}
+	}
+
+	return {
+		count: staleEmails.length,
+		emails: staleEmails,
+		message: staleEmails.length > 0 
+			? `Found ${staleEmails.length} emails older than 48h that might need a response.`
+			: "No stale emails found."
+	};
+}
+
 // ── send_reply ─────────────────────────────────────────────────────
 
 export async function toolSendReply(
