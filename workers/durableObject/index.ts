@@ -649,6 +649,62 @@ export class MailboxDO extends DurableObject<Env> {
 		return true;
 	}
 
+	async snoozeEmail(id: string, until: string) {
+		const email = this.db
+			.select({ id: schema.emails.id })
+			.from(schema.emails)
+			.where(eq(schema.emails.id, id))
+			.get();
+
+		if (!email) return false;
+
+		this.db
+			.update(schema.emails)
+			.set({ folder_id: "snoozed" })
+			.where(eq(schema.emails.id, id))
+			.run();
+
+		this.ctx.storage.sql.exec(
+			`UPDATE emails SET snoozed_until = ? WHERE id = ?`,
+			until,
+			id,
+		);
+
+		return true;
+	}
+
+	async unsnoozeEmail(id: string) {
+		const email = this.db
+			.select({ id: schema.emails.id })
+			.from(schema.emails)
+			.where(eq(schema.emails.id, id))
+			.get();
+
+		if (!email) return false;
+
+		this.db
+			.update(schema.emails)
+			.set({ folder_id: "inbox" })
+			.where(eq(schema.emails.id, id))
+			.run();
+
+		this.ctx.storage.sql.exec(
+			`UPDATE emails SET snoozed_until = NULL WHERE id = ?`,
+			id,
+		);
+
+		return true;
+	}
+
+	async getSnoozedDueEmails() {
+		const now = new Date().toISOString();
+		const result = this.ctx.storage.sql.exec(
+			`SELECT id, snoozed_until FROM emails WHERE folder_id = 'snoozed' AND snoozed_until IS NOT NULL AND snoozed_until <= ?`,
+			now,
+		);
+		return [...result] as { id: string; snoozed_until: string }[];
+	}
+
 	// ── Search (raw SQL — dynamic condition builder) ───────────────
 
 	/**

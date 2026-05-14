@@ -3,6 +3,7 @@ import {
 	ArchiveIcon,
 	ArrowBendUpLeftIcon,
 	ArrowsClockwiseIcon,
+	ClockIcon,
 	EnvelopeOpenIcon,
 	EnvelopeSimpleIcon,
 	FileIcon,
@@ -26,6 +27,8 @@ import {
 	useEmails,
 	useMarkThreadRead,
 	useMoveEmail,
+	useSnoozeEmail,
+	useUnsnoozeEmail,
 	useUpdateEmail,
 } from "~/queries/emails";
 import { useFolders } from "~/queries/folders";
@@ -33,6 +36,8 @@ import { queryKeys } from "~/queries/keys";
 import { useUIStore } from "~/hooks/useUIStore";
 import { useKeyboardNavigation } from "~/hooks/useKeyboardNavigation";
 import { useNotifications, useNewEmailNotifications } from "~/hooks/useNotifications";
+import { useSwipe } from "~/hooks/useSwipe";
+import SnoozePicker from "~/components/SnoozePicker";
 import type { Email } from "~/types";
 
 const PAGE_SIZE = 25;
@@ -258,6 +263,10 @@ export default function EmailListRoute() {
 	const markThreadRead = useMarkThreadRead();
 	const deleteEmail = useDeleteEmail();
 	const moveEmail = useMoveEmail();
+	const snoozeEmail = useSnoozeEmail();
+	const unsnoozeEmail = useUnsnoozeEmail();
+	const [snoozePickerOpen, setSnoozePickerOpen] = useState<string | null>(null);
+	const [undoSendId, setUndoSendId] = useState<string | null>(null);
 
 	const params = useMemo(
 		() => ({
@@ -346,9 +355,9 @@ export default function EmailListRoute() {
 		setTimeout(() => dismissToast(id), 5000);
 	};
 
-	const handleDelete = (e: React.MouseEvent, emailId: string) => {
-		e.preventDefault();
-		e.stopPropagation();
+	const handleDelete = (e: React.MouseEvent | null, emailId: string) => {
+		e?.preventDefault();
+		e?.stopPropagation();
 		if (!mailboxId) return;
 
 		const email = emails.find((e) => e.id === emailId);
@@ -370,6 +379,35 @@ export default function EmailListRoute() {
 			if (selectedEmailId === emailId) closePanel();
 		}
 	};
+
+	const handleUndoSend = () => {
+		if (undoSendId && mailboxId) {
+			deleteEmail.mutate({ mailboxId, id: undoSendId });
+			setUndoSendId(null);
+		}
+	};
+
+	const handleSnooze = (emailId: string, until: string) => {
+		if (mailboxId) snoozeEmail.mutate({ mailboxId, id: emailId, until });
+		if (selectedEmailId === emailId) closePanel();
+	};
+
+	const handleUnsnooze = (emailId: string) => {
+		if (mailboxId) unsnoozeEmail.mutate({ mailboxId, id: emailId });
+	};
+
+	const handleSwipeLeft = (emailId: string) => {
+		handleDelete(null as any, emailId);
+	};
+
+	const handleSwipeRight = (emailId: string) => {
+		setSnoozePickerOpen(emailId);
+	};
+
+	const { onTouchStart, onTouchMove, onTouchEnd } = useSwipe({
+		onSwipeLeft: handleSwipeLeft,
+		onSwipeRight: handleSwipeRight,
+	});
 
 	const handleRefresh = () => {
 		if (mailboxId) {
@@ -567,28 +605,31 @@ export default function EmailListRoute() {
 							const snippet = getSnippetText(email.snippet);
 							const staggerClass = animateRows && index < 20 ? `stagger-${index + 1}` : "";
 							return (
-								<div
-									key={email.id}
-									id={`email-row-${email.id}`}
-									role="button"
-									tabIndex={0}
-									onClick={() => handleRowClick(email)}
-									onMouseEnter={(e) => handleMouseEnter(e, email)}
-									onMouseLeave={handleMouseLeave}
-									onKeyDown={(e) => {
-										if (e.key === "Enter" || e.key === " ") {
-											e.preventDefault();
-											handleRowClick(email);
-										}
-									}}
-									className={`group flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-2.5 md:px-6 md:py-3 email-row-enter ${staggerClass} ${
-										isPanelOpen ? "md:px-4 md:py-2.5" : ""
-									} ${
-										isSelected
-											? "bg-kumo-tint border-l-2 border-l-kumo-brand"
-											: "hover:bg-kumo-tint border-l-2 border-l-transparent"
-									}`}
-									style={!animateRows ? { animation: "none" } : undefined}
+							<div
+								key={email.id}
+								id={`email-row-${email.id}`}
+								role="button"
+								tabIndex={0}
+								onClick={() => handleRowClick(email)}
+								onMouseEnter={(e) => handleMouseEnter(e, email)}
+								onMouseLeave={handleMouseLeave}
+								onTouchStart={(e) => onTouchStart(e, email.id)}
+								onTouchMove={onTouchMove}
+								onTouchEnd={onTouchEnd}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										handleRowClick(email);
+									}
+								}}
+								className={`group flex items-center gap-3 w-full text-left cursor-pointer transition-colors border-b border-kumo-line px-4 py-2.5 md:px-6 md:py-3 email-row-enter ${staggerClass} ${
+									isPanelOpen ? "md:px-4 md:py-2.5" : ""
+								} ${
+									isSelected
+										? "bg-kumo-tint border-l-2 border-l-kumo-brand"
+										: "hover:bg-kumo-tint border-l-2 border-l-transparent"
+								}`}
+								style={!animateRows ? { animation: "none" } : undefined}
 								>
 									{/* Unread dot */}
 									<div className="w-2.5 shrink-0 flex justify-center">
@@ -662,6 +703,30 @@ export default function EmailListRoute() {
 
 									{/* Hover actions */}
 									<div className="hidden group-hover:flex items-center shrink-0">
+										{email.folder_id !== Folders.SNOOZED && (
+											<Tooltip content="Snooze" asChild>
+												<Button
+													variant="ghost"
+													shape="square"
+													size="sm"
+													icon={<ClockIcon size={14} />}
+													onClick={(e) => { e.stopPropagation(); setSnoozePickerOpen(email.id); }}
+													aria-label="Snooze"
+												/>
+											</Tooltip>
+										)}
+										{email.folder_id === Folders.SNOOZED && (
+											<Tooltip content="Unsnooze" asChild>
+												<Button
+													variant="ghost"
+													shape="square"
+													size="sm"
+													icon={<ClockIcon size={14} className="text-kumo-brand" />}
+													onClick={(e) => { e.stopPropagation(); handleUnsnooze(email.id); }}
+													aria-label="Unsnooze"
+												/>
+											</Tooltip>
+										)}
 										<Tooltip content={email.read ? "Mark unread" : "Mark read"} asChild>
 											<Button
 												variant="ghost"
@@ -727,6 +792,36 @@ export default function EmailListRoute() {
 						left: Math.min(hoverTarget.rect.right + 12, window.innerWidth - 340),
 					}}
 				/>
+			)}
+
+			{/* Snooze picker */}
+			{snoozePickerOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={() => setSnoozePickerOpen(null)}>
+					<div className="relative" onClick={(e) => e.stopPropagation()}>
+						<SnoozePicker
+							open={true}
+							onClose={() => setSnoozePickerOpen(null)}
+							onSnooze={(until) => {
+								handleSnooze(snoozePickerOpen, until);
+								setSnoozePickerOpen(null);
+							}}
+						/>
+					</div>
+				</div>
+			)}
+
+			{/* Undo send toast */}
+			{undoSendId && (
+				<div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 glass px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 text-sm text-kumo-default min-w-[280px] animate-slide-in-right">
+					<span className="flex-1">Email sent</span>
+					<button
+						type="button"
+						onClick={handleUndoSend}
+						className="text-kumo-brand font-semibold hover:underline bg-transparent border-0 cursor-pointer text-sm"
+					>
+						Undo
+					</button>
+				</div>
 			)}
 
 			{/* Toasts */}

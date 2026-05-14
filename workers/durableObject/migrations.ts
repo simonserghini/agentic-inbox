@@ -168,4 +168,12 @@ export const mailboxMigrations: Migration[] = [
             CREATE INDEX IF NOT EXISTS idx_emails_folder_date ON emails(folder_id, date DESC);
         `,
 	},
+	{
+		name: "9_add_snooze_schedule",
+		sql: txn(`
+            ALTER TABLE emails ADD COLUMN snoozed_until TEXT;
+            ALTER TABLE emails ADD COLUMN scheduled_send_at TEXT;
+            INSERT OR IGNORE INTO folders (id, name, is_deletable) VALUES ('snoozed', 'Snoozed', 0);
+        `),
+	},
 ];

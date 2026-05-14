@@ -181,6 +181,9 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const [error, setError] = useState<string | null>(null);
 	const [isSavingDraft, setIsSavingDraft] = useState(false);
 	const [isSending, setIsSending] = useState(false);
+	const [scheduledFor, setScheduledFor] = useState<string | null>(null);
+	const [lastSentId, setLastSentId] = useState<string | null>(null);
+	const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 	const lastInitializedOptionsRef = useRef<typeof composeOptions | null>(null);
 	const isDraftEdit = !!composeOptions.draftEmail;
 
@@ -209,7 +212,7 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		setBody(initialFields.body);
 	}, [composeOptions, currentMailbox?.email, sigBlock]);
 
-	const handleSaveDraft = async () => {
+	const handleSaveDraft = async (scheduled?: string) => {
 		if (!mailboxId || isSending) return; setIsSavingDraft(true); setError(null);
 		try {
 			await saveDraftMutation.mutateAsync({ mailboxId, draft: {
@@ -221,6 +224,7 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 				in_reply_to: composeOptions.originalEmail?.id || composeOptions.draftEmail?.in_reply_to || undefined,
 				thread_id: composeOptions.originalEmail?.thread_id || composeOptions.draftEmail?.thread_id || undefined,
 				draft_id: composeOptions.draftEmail?.id || undefined,
+				scheduled_send_at: scheduled || undefined,
 			} });
 			toastManager.add({ title: "Draft saved!" });
 		}
@@ -230,6 +234,22 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 			toastManager.add({ title: message, variant: "error" });
 		}
 		finally { setIsSavingDraft(false); }
+	};
+
+	const undoLastSend = () => {
+		if (lastSentId && mailboxId) {
+			deleteEmailMutation.mutate({ mailboxId, id: lastSentId });
+			setLastSentId(null);
+			if (undoTimer) clearTimeout(undoTimer);
+			setUndoTimer(null);
+			toastManager.add({ title: "Send undone" });
+		}
+	};
+
+	const handleScheduleSend = async (scheduledForDate: string) => {
+		setScheduledFor(scheduledForDate);
+		await handleSaveDraft(scheduledForDate);
+		toastManager.add({ title: `Scheduled for ${new Date(scheduledForDate).toLocaleString()}` });
 	};
 
 	const handleSend = async (e: FormEvent, onClose: () => void) => {
@@ -252,15 +272,25 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		const draftId = composeOptions.draftEmail?.id; const mode = composeOptions.mode; const originalId = composeOptions.originalEmail?.id || composeOptions.draftEmail?.in_reply_to;
 		setIsSending(true); toastManager.add({ title: "Sending email..." });
 		try {
+			let sentId: string | undefined;
 			if ((mode === "reply" || mode === "reply-all") && originalId) await replyMutation.mutateAsync({ mailboxId, emailId: originalId, email: emailData });
 			else if (mode === "forward" && originalId) await forwardMutation.mutateAsync({ mailboxId, emailId: originalId, email: emailData });
-			else await sendEmailMutation.mutateAsync({ mailboxId, email: emailData });
+			else {
+				const result = await sendEmailMutation.mutateAsync({ mailboxId, email: emailData });
+				sentId = result?.id;
+			}
 			if (draftId) deleteEmailMutation.mutate({ mailboxId, id: draftId });
-			toastManager.add({ title: "Email sent!" });
-			onClose();
+			if (sentId) {
+				setLastSentId(sentId);
+				const timer = setTimeout(() => { setLastSentId(null); setUndoTimer(null); }, 5000);
+				setUndoTimer(timer);
+			} else {
+				toastManager.add({ title: "Email sent!" });
+				onClose();
+			}
 		} catch (err: unknown) { const message = (err instanceof Error ? err.message : null) || "Failed to send email."; setError(message); toastManager.add({ title: message, variant: "error" }); }
 		finally { setIsSending(false); }
 	};
 
-	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, formTitle, handleSaveDraft, handleSend, closeCompose, closePanel };
+	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, scheduledFor, lastSentId, formTitle, handleSaveDraft, handleScheduleSend, handleSend, undoLastSend, closeCompose, closePanel };
 }

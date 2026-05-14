@@ -42,6 +42,7 @@ const DraftBody = z.object({
 	in_reply_to: z.string().optional(),
 	thread_id: z.string().optional(),
 	draft_id: z.string().optional(),
+	scheduled_send_at: z.string().optional(),
 });
 
 // -- Helpers --------------------------------------------------------
@@ -218,7 +219,7 @@ app.post("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 
 app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 	const mailboxId = c.req.param("mailboxId")!;
-	const { to, cc, bcc, subject, body, in_reply_to, thread_id, draft_id } = DraftBody.parse(await c.req.json());
+	const { to, cc, bcc, subject, body, in_reply_to, thread_id, draft_id, scheduled_send_at } = DraftBody.parse(await c.req.json());
 	const stub = c.var.mailboxStub;
 	if (draft_id) await stub.deleteEmail(draft_id); // not atomic — create-then-delete would be safer
 	const messageId = crypto.randomUUID();
@@ -227,9 +228,16 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 		id: messageId, subject: subject || "", sender: mailboxId.toLowerCase(),
 		recipient: (to || "").toLowerCase(), cc: cc?.toLowerCase() || null, bcc: bcc?.toLowerCase() || null,
 		date: now, body, in_reply_to: in_reply_to || null, email_references: null,
-		thread_id: thread_id || in_reply_to || messageId,
+		thread_id: thread_id || in_reply_to || messageId, scheduled_send_at: scheduled_send_at || null,
 	}, []);
-	return c.json({ id: messageId, status: "draft", subject: subject || "", recipient: to || "", date: now }, 201);
+	if (scheduled_send_at) {
+		stub.ctx.storage.sql.exec(
+			`UPDATE emails SET scheduled_send_at = ? WHERE id = ?`,
+			scheduled_send_at,
+			messageId,
+		);
+	}
+	return c.json({ id: messageId, status: "draft", subject: subject || "", recipient: to || "", date: now, scheduled_send_at }, 201);
 });
 
 app.get("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
@@ -258,6 +266,17 @@ app.post("/api/v1/mailboxes/:mailboxId/emails/:id/move", async (c: AppContext) =
 	const { folderId } = (await c.req.json()) as { folderId: string };
 	const success = await c.var.mailboxStub.moveEmail(c.req.param("id")!, folderId);
 	return success ? c.json({ status: "moved" }) : c.json({ error: "Folder not found" }, 400);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/emails/:id/snooze", async (c: AppContext) => {
+	const { until } = (await c.req.json()) as { until: string };
+	const success = await c.var.mailboxStub.snoozeEmail(c.req.param("id")!, until);
+	return success ? c.json({ status: "snoozed" }) : c.json({ error: "Email not found" }, 404);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/emails/:id/unsnooze", async (c: AppContext) => {
+	const success = await c.var.mailboxStub.unsnoozeEmail(c.req.param("id")!);
+	return success ? c.json({ status: "unsnoozed" }) : c.json({ error: "Email not found" }, 404);
 });
 
 // -- Threads --------------------------------------------------------

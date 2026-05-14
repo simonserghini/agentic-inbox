@@ -42,6 +42,8 @@ export interface Email {
 	raw_headers?: string | null;
 	attachments?: Attachment[];
 	snippet?: string | null;
+	snoozed_until?: string | null;
+	scheduled_send_at?: string | null;
 	// Thread aggregate fields (only present in threaded list view)
 	thread_count?: number;
 	thread_unread_count?: number;

@@ -114,7 +114,7 @@ const api = {
 	listEmails: (mailboxId: string, params: Record<string, string>, opts?: { signal?: AbortSignal }) =>
 		get<EmailListResponse | Email[]>(`/api/v1/mailboxes/${mailboxId}/emails`, { params, signal: opts?.signal }),
 	sendEmail: (mailboxId: string, email: unknown) =>
-		post<void>(`/api/v1/mailboxes/${mailboxId}/emails`, email),
+		post<{ id: string; status: string }>(`/api/v1/mailboxes/${mailboxId}/emails`, email),
 	getEmail: (mailboxId: string, id: string, opts?: { signal?: AbortSignal }) =>
 		get<Email>(`/api/v1/mailboxes/${mailboxId}/emails/${id}`, { signal: opts?.signal }),
 	updateEmail: (mailboxId: string, id: string, data: unknown) =>
@@ -129,6 +129,10 @@ const api = {
 		post<void>(`/api/v1/mailboxes/${mailboxId}/threads/${threadId}/read`),
 	getAttachment: (mailboxId: string, emailId: string, attachmentId: string) =>
 		get<Blob>(`/api/v1/mailboxes/${mailboxId}/emails/${emailId}/attachments/${attachmentId}`, { responseType: "blob" }),
+	snoozeEmail: (mailboxId: string, id: string, until: string) =>
+		post<{ status: string }>(`/api/v1/mailboxes/${mailboxId}/emails/${id}/snooze`, { until }),
+	unsnoozeEmail: (mailboxId: string, id: string) =>
+		post<{ status: string }>(`/api/v1/mailboxes/${mailboxId}/emails/${id}/unsnooze`),
 	saveDraft: (
 		mailboxId: string,
 		draft: {
@@ -140,8 +144,9 @@ const api = {
 			in_reply_to?: string;
 			thread_id?: string;
 			draft_id?: string;
+			scheduled_send_at?: string;
 		},
-	) => post<{ draft_id: string }>(`/api/v1/mailboxes/${mailboxId}/drafts`, draft),
+	) => post<{ draft_id: string; scheduled_send_at?: string }>(`/api/v1/mailboxes/${mailboxId}/drafts`, draft),
 	replyToEmail: (mailboxId: string, emailId: string, email: unknown) =>
 		post<void>(`/api/v1/mailboxes/${mailboxId}/emails/${emailId}/reply`, email),
 	forwardEmail: (mailboxId: string, emailId: string, email: unknown) =>

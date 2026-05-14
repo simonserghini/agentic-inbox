@@ -17,6 +17,7 @@ export const Folders = {
 	ARCHIVE: "archive",
 	TRASH: "trash",
 	SPAM: "spam",
+	SNOOZED: "snoozed",
 } as const;
 
 export type FolderId = (typeof Folders)[keyof typeof Folders];

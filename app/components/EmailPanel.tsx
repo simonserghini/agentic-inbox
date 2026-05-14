@@ -13,7 +13,7 @@ import SingleMessageView from "~/components/email-panel/SingleMessageView";
 import ThreadMessage from "~/components/email-panel/ThreadMessage";
 import { splitEmailList, toEmailListValue } from "~/lib/utils";
 import api from "~/services/api";
-import { useDeleteEmail, useEmail, useMoveEmail, useReplyToEmail, useSendEmail, useThreadReplies, useUpdateEmail } from "~/queries/emails";
+import { useDeleteEmail, useEmail, useMoveEmail, useReplyToEmail, useSendEmail, useSnoozeEmail, useThreadReplies, useUnsnoozeEmail, useUpdateEmail } from "~/queries/emails";
 import { useFolders } from "~/queries/folders";
 import { useMailbox } from "~/queries/mailboxes";
 import { useUIStore } from "~/hooks/useUIStore";
@@ -38,6 +38,8 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 	const updateEmail = useUpdateEmail();
 	const deleteEmailMut = useDeleteEmail();
 	const moveEmailMut = useMoveEmail();
+	const snoozeEmailMut = useSnoozeEmail();
+	const unsnoozeEmailMut = useUnsnoozeEmail();
 	const sendEmailMut = useSendEmail();
 	const replyMut = useReplyToEmail();
 	const { data: folders = [] } = useFolders(mailboxId) as { data?: Folder[] };
@@ -84,6 +86,8 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 	}, [allMessages, draftMessageIds, currentMailbox?.email, email]);
 
 	const moveToFolders = useMemo(() => { const cur = folder || email?.folder_id; return folders.filter((f) => f.id !== cur); }, [folders, folder, email?.folder_id]);
+	const handleSnooze = (until: string) => { if (mailboxId) snoozeEmailMut.mutate({ mailboxId, id: email.id, until }); };
+	const handleUnsnooze = () => { if (mailboxId) unsnoozeEmailMut.mutate({ mailboxId, id: email.id }); };
 
 	if (!email) return <EmailPanelSkeleton />;
 
@@ -176,6 +180,8 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 				onSummarize={() => {
 					setAgentCommand(`Summarize the current thread: ${email.thread_id}`);
 				}}
+				onSnooze={handleSnooze}
+				onUnsnooze={handleUnsnooze}
 			/>
 
 			<EmailPanelHeader

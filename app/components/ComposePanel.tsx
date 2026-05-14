@@ -2,17 +2,20 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Banner, Button, Input } from "@cloudflare/kumo";
-import { FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { Banner, Button, Input, Tooltip } from "@cloudflare/kumo";
+import { CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
 import RichTextEditor from "./RichTextEditor";
+import SchedulePicker from "./SchedulePicker";
+import { useState } from "react";
 
 export default function ComposePanel() {
 	const { mailboxId, folder } = useParams<{
 		mailboxId: string;
 		folder: string;
 	}>();
+	const [showSchedulePicker, setShowSchedulePicker] = useState(false);
 
 	const {
 		to,
@@ -30,9 +33,13 @@ export default function ComposePanel() {
 		error,
 		isSavingDraft,
 		isSending,
+		scheduledFor,
+		lastSentId,
 		formTitle,
 		handleSaveDraft,
+		handleScheduleSend,
 		handleSend,
+		undoLastSend,
 		closeCompose,
 		closePanel,
 	} = useComposeForm(mailboxId, folder);
@@ -155,6 +162,12 @@ export default function ComposePanel() {
 							Discard
 						</Button>
 						<div className="flex items-center gap-2">
+							{scheduledFor && (
+								<div className="flex items-center gap-1.5 text-xs text-kumo-brand bg-kumo-brand/10 px-2 py-1 rounded-md">
+									<ClockIcon size={14} />
+									<span>Scheduled</span>
+								</div>
+							)}
 							<Button
 								type="button"
 								variant="secondary"
@@ -164,8 +177,29 @@ export default function ComposePanel() {
 								icon={<FloppyDiskIcon size={14} />}
 								onClick={handleSaveDraft}
 							>
-								{isSavingDraft ? "Saving..." : "Save as Draft"}
+								{isSavingDraft ? "Saving..." : "Draft"}
 							</Button>
+							<div className="relative">
+								<Tooltip content={scheduledFor ? "Scheduled send" : "Schedule send"} side="top" asChild>
+									<Button
+										type="button"
+										variant={scheduledFor ? "secondary" : "ghost"}
+										shape="square"
+										size="sm"
+										icon={<CalendarBlankIcon size={16} />}
+										onClick={() => setShowSchedulePicker((o) => !o)}
+										aria-label="Schedule send"
+									/>
+								</Tooltip>
+								<SchedulePicker
+									open={showSchedulePicker}
+									onClose={() => setShowSchedulePicker(false)}
+									onSchedule={(scheduledFor) => {
+										handleScheduleSend(scheduledFor);
+										setShowSchedulePicker(false);
+									}}
+								/>
+							</div>
 							<Button
 								type="submit"
 								variant="primary"
@@ -174,12 +208,24 @@ export default function ComposePanel() {
 								disabled={isSavingDraft || isSending}
 								icon={<PaperPlaneTiltIcon size={14} />}
 							>
-								{isSending ? "Sending..." : "Send"}
+								{isSending ? "Sending..." : scheduledFor ? "Send Now" : "Send"}
 							</Button>
 						</div>
 					</div>
 				</div>
 			</form>
+		{lastSentId && (
+				<div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 glass px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 text-sm text-kumo-default min-w-[280px] animate-slide-in-right">
+					<span className="flex-1">Email sent</span>
+					<button
+						type="button"
+						onClick={undoLastSend}
+						className="text-kumo-brand font-semibold hover:underline bg-transparent border-0 cursor-pointer text-sm"
+					>
+						Undo
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

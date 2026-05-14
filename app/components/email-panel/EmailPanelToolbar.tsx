@@ -9,6 +9,7 @@ import {
 	ArrowBendUpRightIcon,
 	ArrowLeftIcon,
 	ChatCircleIcon,
+	ClockIcon,
 	CodeIcon,
 	EnvelopeOpenIcon,
 	EnvelopeSimpleIcon,
@@ -41,6 +42,8 @@ interface EmailPanelToolbarProps {
 	onViewSource: () => void;
 	onDelete: () => void;
 	onSummarize: () => void;
+	onSnooze?: (until: string) => void;
+	onUnsnooze?: () => void;
 }
 
 export default function EmailPanelToolbar({
@@ -61,6 +64,8 @@ export default function EmailPanelToolbar({
 	onViewSource,
 	onDelete,
 	onSummarize,
+	onSnooze,
+	onUnsnooze,
 }: EmailPanelToolbarProps) {
 	return (
 		<div className="flex items-center gap-1 px-3 py-2 border-b border-kumo-line shrink-0 md:px-4">
@@ -137,6 +142,7 @@ export default function EmailPanelToolbar({
 							className="text-kumo-brand"
 						/>
 					</Tooltip>
+					<SnoozeButton onSnooze={onSnooze} onUnsnooze={onUnsnooze} emailFolder={email.folder_id} />
 				</>
 			)}
 
@@ -205,6 +211,61 @@ export default function EmailPanelToolbar({
 					/>
 				</Tooltip>
 			</div>
+		</div>
+	);
+}
+
+function SnoozeButton({ onSnooze, onUnsnooze, emailFolder }: { onSnooze?: (until: string) => void; onUnsnooze?: () => void; emailFolder?: string | null }) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [open]);
+
+	const isSnoozed = emailFolder === "snoozed";
+	const now = new Date();
+
+	if (!onSnooze) return null;
+
+	return (
+		<div ref={ref} className="relative">
+			<Tooltip content={isSnoozed ? "Unsnooze" : "Snooze"} side="bottom" asChild>
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					icon={<ClockIcon size={18} className={isSnoozed ? "text-kumo-brand" : ""} />}
+					onClick={() => isSnoozed ? onUnsnooze?.() : setOpen((o) => !o)}
+					aria-label={isSnoozed ? "Unsnooze" : "Snooze"}
+				/>
+			</Tooltip>
+			{open && (
+				<div className="absolute top-full left-0 z-50 mt-1 min-w-[180px] rounded-lg border border-kumo-line bg-kumo-elevated shadow-lg py-1">
+					<div className="px-3 py-1.5 text-xs font-medium text-kumo-subtle">Snooze until</div>
+					<div className="h-px bg-kumo-line my-1" />
+					{[
+						{ label: "Later today (8pm)", get: () => { const d = new Date(); d.setHours(20, 0, 0, 0); return d.toISOString(); } },
+						{ label: "Tomorrow 9am", get: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d.toISOString(); } },
+						{ label: "This weekend", get: () => { const d = new Date(); d.setDate(d.getDate() + (6 - d.getDay() || 7)); d.setHours(9, 0, 0, 0); return d.toISOString(); } },
+						{ label: "Next week", get: () => { const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(9, 0, 0, 0); return d.toISOString(); } },
+					].map((opt) => (
+						<button
+							key={opt.label}
+							type="button"
+							className="w-full text-left px-3 py-1.5 text-sm text-kumo-default hover:bg-kumo-overlay transition-colors"
+							onClick={() => { onSnooze(opt.get()); setOpen(false); }}
+						>
+							{opt.label}
+						</button>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
