@@ -1,4 +1,4 @@
-import { Button, Input, useKumoToastManager, Switch, Surface, TextArea } from "@cloudflare/kumo";
+import { Button, Input, useKumoToastManager, Switch, Surface, InputArea } from "@cloudflare/kumo";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
 import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool, Sparkles, Terminal } from "lucide-react";
@@ -271,7 +271,7 @@ export default function SettingsUnified() {
 										<div className="relative flex-1">
 											<Input
 												value={resendApiKey === "__CLEAR__" ? "" : resendApiKey}
-												onChange={(e) => setPromptAutoDraft(e.target.value)}
+												onChange={(e) => setResendApiKey(e.target.value)}
 												type={showResendKey ? "text" : "password"}
 												placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxxxx"
 												className="font-mono text-xs h-11 pr-10"
@@ -353,7 +353,7 @@ export default function SettingsUnified() {
 								<div className="space-y-3">
 									<label className="text-sm font-semibold text-kumo-default">Secret API Key</label>
 									<div className="flex gap-2">
-										<Input value={apiKey} readOnly className="font-mono text-xs bg-kumo-recessed flex-1 h-11" />
+										<Input value={apiKey} readOnly className="font-mono text-xs bg-recessed flex-1 h-11" />
 										<Button
 											variant="secondary"
 											shape="square"
@@ -391,7 +391,7 @@ export default function SettingsUnified() {
 									<p className="text-sm text-kumo-subtle">Define how your AI agent should behave for this mailbox.</p>
 								</div>
 
-								<TextArea
+								<InputArea
 									label="Tone of Voice"
 									value={agentTone}
 									onChange={(e) => setAgentTone(e.target.value)}
@@ -399,7 +399,7 @@ export default function SettingsUnified() {
 									className="min-h-[80px]"
 								/>
 
-								<TextArea
+								<InputArea
 									label="Email Signature"
 									value={agentSignature}
 									onChange={(e) => setAgentSignature(e.target.value)}
@@ -417,7 +417,7 @@ export default function SettingsUnified() {
 									<p className="text-sm text-kumo-subtle">Fully customize the core logic guiding the AI.</p>
 								</div>
 
-								<TextArea
+								<InputArea
 									label="Auto-Categorization Logic"
 									value={promptCategorization}
 									onChange={(e) => setPromptCategorization(e.target.value)}
@@ -425,7 +425,7 @@ export default function SettingsUnified() {
 									className="min-h-[120px] font-mono text-xs"
 								/>
 
-								<TextArea
+								<InputArea
 									label="Vision AI (OCR) Instructions"
 									value={promptVision}
 									onChange={(e) => setPromptVision(e.target.value)}
@@ -433,7 +433,7 @@ export default function SettingsUnified() {
 									className="min-h-[120px] font-mono text-xs"
 								/>
 
-								<TextArea
+								<InputArea
 									label="Auto-Draft Orchestration"
 									value={promptAutoDraft}
 									onChange={(e) => setPromptAutoDraft(e.target.value)}
