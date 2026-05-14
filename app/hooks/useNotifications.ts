@@ -31,10 +31,13 @@ function playChime() {
 export type NotificationPermissionState = NotificationPermission | "unsupported";
 
 export function useNotifications() {
-  const [permission, setPermission] = useState<NotificationPermissionState>(() => {
-    if (typeof Notification === "undefined") return "unsupported";
-    return Notification.permission;
-  });
+  const [permission, setPermission] = useState<NotificationPermissionState>("default");
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined") {
+      setPermission(Notification.permission);
+    }
+  }, []);
 
   const requestPermission = useCallback(async () => {
     if (typeof Notification === "undefined") return "unsupported";
