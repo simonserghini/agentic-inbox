@@ -887,50 +887,55 @@ export class MailboxDO extends DurableObject<Env> {
 		email: EmailData,
 		attachments: AttachmentData[],
 	) {
-		// Resolve folder name or ID to the actual folder ID.
-		const folderRow = this.db
-			.select({ id: schema.folders.id })
-			.from(schema.folders)
-			.where(or(eq(schema.folders.id, folder), eq(schema.folders.name, folder)))
-			.limit(1)
-			.get();
+		this.db.transaction((tx) => {
+			// Resolve folder name or ID to the actual folder ID.
+			const folderRow = tx
+				.select({ id: schema.folders.id })
+				.from(schema.folders)
+				.where(or(eq(schema.folders.id, folder), eq(schema.folders.name, folder)))
+				.limit(1)
+				.get();
 
-		if (!folderRow) {
-			throw new Error(
-				`createEmail: folder "${folder}" not found. ` +
-					"Ensure the folder exists before inserting an email.",
-			);
-		}
+			if (!folderRow) {
+				throw new Error(
+					`createEmail: folder "${folder}" not found. ` +
+						"Ensure the folder exists before inserting an email.",
+				);
+			}
 
-		const folderId = folderRow.id;
-		const isSent = folderId === Folders.SENT;
+			const folderId = folderRow.id;
+			const isSent = folderId === Folders.SENT;
 
-		// Sent emails are always read — the sender obviously knows what they wrote.
-		// This prevents sent replies from inflating thread_unread_count.
-		this.db
-			.insert(schema.emails)
-			.values({
-				id: email.id,
-				folder_id: folderId,
-				subject: email.subject,
-				sender: email.sender,
-				recipient: email.recipient,
-				cc: email.cc ?? null,
-				bcc: email.bcc ?? null,
-				date: email.date,
-				read: isSent ? 1 : (email.read ? 1 : 0),
-				starred: email.starred ? 1 : 0,
-				body: email.body,
-				in_reply_to: email.in_reply_to ?? null,
-				email_references: email.email_references ?? null,
-				thread_id: email.thread_id ?? null,
-				message_id: email.message_id ?? null,
-				raw_headers: email.raw_headers ?? null,
-			})
-			.run();
+			// Sent emails are always read — the sender obviously knows what they wrote.
+			// This prevents sent replies from inflating thread_unread_count.
+			tx.insert(schema.emails)
+				.values({
+					id: email.id,
+					folder_id: folderId,
+					subject: email.subject,
+					sender: email.sender,
+					recipient: email.recipient,
+					cc: email.cc ?? null,
+					bcc: email.bcc ?? null,
+					date: email.date,
+					read: isSent ? 1 : (email.read ? 1 : 0),
+					starred: email.starred ? 1 : 0,
+					body: email.body,
+					in_reply_to: email.in_reply_to ?? null,
+					email_references: email.email_references ?? null,
+					thread_id: email.thread_id ?? null,
+					message_id: email.message_id ?? null,
+					raw_headers: email.raw_headers ?? null,
+				})
+				.run();
 
-		if (attachments.length > 0) {
-			this.db.insert(schema.attachments).values(attachments).run();
-		}
+			if (attachments.length > 0) {
+				tx.insert(schema.attachments).values(attachments).run();
+			}
+		});
+	}
+
+	async destroy() {
+		await this.ctx.storage.deleteAll();
 	}
 }

@@ -401,24 +401,27 @@ export async function toolScanUnanswered(
 	})) as EmailFull[];
 
 	const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-	const staleEmails = [];
+	const staleEmails: { id: string; subject: string; sender: string; date: string; threadId: string | null }[] = [];
 
 	for (const email of emails) {
 		const emailDate = new Date(email.date);
 		if (emailDate < fortyEightHoursAgo && !email.read) {
 			// Check if we replied in this thread
-			const thread = (await getFullThread(stub, email.thread_id)) as EmailFull[];
-			const hasReply = thread.some(
-				(m) => m.sender.toLowerCase() === mailboxId.toLowerCase() && new Date(m.date) > emailDate
-			);
+			let hasReply = false;
+			if (email.thread_id) {
+				const thread = await getFullThread(stub, email.thread_id);
+				hasReply = thread.messages.some(
+					(m) => m.sender.toLowerCase() === mailboxId.toLowerCase() && new Date(m.date) > emailDate
+				);
+			}
 
 			if (!hasReply) {
 				staleEmails.push({
 					id: email.id,
-					subject: email.subject,
-					sender: email.sender,
+					subject: email.subject || "(no subject)",
+					sender: email.sender || "(unknown)",
 					date: email.date,
-					threadId: email.thread_id,
+					threadId: email.thread_id || null,
 				});
 			}
 		}

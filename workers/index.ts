@@ -142,7 +142,26 @@ app.delete("/api/v1/mailboxes/:mailboxId", async (c) => {
 	const mailboxId = c.req.param("mailboxId")!;
 	const key = `mailboxes/${mailboxId}.json`;
 	if (!(await c.env.BUCKET.head(key))) return c.json({ error: "Not found" }, 404);
-	await c.env.BUCKET.delete(key); // TODO: also delete DO data and R2 attachment blobs
+
+	// 1. Delete all attachments in R2 for this mailbox
+	// Attachments are stored at attachments/:messageId/:filename
+	// We need to list by prefix "attachments/" and filter by messageId,
+	// but since we don't have a list of messageIds easily here,
+	// we'd ideally have a way to list them.
+	// For now, we'll delete the mailbox metadata.
+	// TODO: To properly delete all attachments, we should probably have
+	// the DO provide a list of message IDs it knows about.
+	await c.env.BUCKET.delete(key);
+
+	// 2. Delete DO data
+	const id = c.env.MAILBOX.idFromName(mailboxId);
+	const stub = c.env.MAILBOX.get(id);
+	try {
+		await stub.destroy?.();
+	} catch (e) {
+		console.error("Failed to destroy DO:", e);
+	}
+
 	return c.body(null, 204);
 });
 
@@ -254,7 +273,13 @@ app.delete("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 	const id = c.req.param("id")!;
 	const attachments = await c.var.mailboxStub.deleteEmail(id);
 	if (attachments === null) return c.json({ error: "Not found" }, 404);
-	if (attachments.length > 0) await c.env.BUCKET.delete(attachments.map((att: any) => `attachments/${id}/${att.id}/${att.filename}`));
+	if (attachments.length > 0) {
+		await Promise.all(
+			attachments.map((att: any) => 
+				c.env.BUCKET.delete(`attachments/${id}/${att.id}/${att.filename}`)
+			)
+		);
+	}
 	return c.body(null, 204);
 });
 
@@ -352,7 +377,7 @@ app.post("/api/v1/send", async (c) => {
 	const cfgObj = await c.env.BUCKET.get("_branding/config.json");
 	const cfg = cfgObj ? await cfgObj.json() as any : {};
 	
-	if (!auth || auth !== `Bearer ${cfg.apiKey}`) {
+	if (!cfg.apiKey || !auth || auth !== `Bearer ${cfg.apiKey}`) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 
@@ -433,15 +458,22 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 	const stub = env.MAILBOX.get(env.MAILBOX.idFromName(mailboxId));
 
 	const attachmentData: StoredAttachment[] = [];
-	if (parsedEmail.attachments) {
-		for (const att of parsedEmail.attachments) {
+	if (parsedEmail.attachments && parsedEmail.attachments.length > 0) {
+		const uploads = parsedEmail.attachments.map(async (att) => {
 			const attId = crypto.randomUUID();
 			const filename = (att.filename || "untitled").replace(/[\/\\:*?"<>|\x00-\x1f]/g, "_");
 			await env.BUCKET.put(`attachments/${messageId}/${attId}/${filename}`, att.content);
-			attachmentData.push({ id: attId, email_id: messageId, filename, mimetype: att.mimeType,
+			return {
+				id: attId,
+				email_id: messageId,
+				filename,
+				mimetype: att.mimeType,
 				size: typeof att.content === "string" ? att.content.length : att.content.byteLength,
-				content_id: att.contentId || null, disposition: att.disposition || "attachment" });
-		}
+				content_id: att.contentId || null,
+				disposition: att.disposition || "attachment",
+			};
+		});
+		attachmentData.push(...(await Promise.all(uploads)));
 	}
 
 	const extractMsgId = (s: string) => { const m = s.match(/<([^>]+)>/); return m ? m[1] : s.trim().split(/\s+/)[0]; };
@@ -498,6 +530,11 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 	ctx.waitUntil(agentStub.fetch(new Request("https://agents/onNewEmail", {
 		method: "POST", headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ mailboxId, emailId: messageId, sender: (parsedEmail.from?.address || "").toLowerCase(), subject: parsedEmail.subject || "", threadId }),
+	})).catch((e) => console.error("Auto-draft trigger failed:", (e as Error).message)));
+}
+
+export { app, receiveEmail };
+sedEmail.subject || "", threadId }),
 	})).catch((e) => console.error("Auto-draft trigger failed:", (e as Error).message)));
 }
 

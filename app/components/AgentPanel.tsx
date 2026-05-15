@@ -446,6 +446,7 @@ function AgentChatConnected({
 								shape="square"
 								size="sm"
 								icon={<TrashIcon size={16} />}
+								aria-label="Clear chat history"
 								onClick={() => {
 									if (window.confirm("Clear chat history?")) {
 										setMessages([]);
@@ -588,6 +589,7 @@ function AgentChatConnected({
 								shape="square"
 								disabled={!inputValue.trim()}
 								icon={<ArrowUpIcon size={18} weight="bold" />}
+								aria-label="Send message"
 								onClick={handleSend}
 								className={`h-10 w-10 rounded-xl transition-all ${!inputValue.trim() ? "opacity-50" : "shadow-lg shadow-kumo-brand/30 scale-100 hover:scale-105"}`}
 							/>

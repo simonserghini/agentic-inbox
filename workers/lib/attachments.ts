@@ -34,8 +34,7 @@ export async function storeAttachments(
 ): Promise<StoredAttachment[]> {
 	if (!attachments?.length) return [];
 
-	const results: StoredAttachment[] = [];
-	for (const att of attachments) {
+	const uploads = attachments.map(async (att) => {
 		const attachmentId = crypto.randomUUID();
 		// Sanitize filename to prevent path traversal in R2 keys
 		const safeFilename = (att.filename || "untitled").replace(/[\/\\:*?"<>|\x00-\x1f]/g, "_");
@@ -43,7 +42,7 @@ export async function storeAttachments(
 		const binaryStr = atob(att.content);
 		const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0));
 		await bucket.put(key, bytes);
-		results.push({
+		return {
 			id: attachmentId,
 			email_id: emailId,
 			filename: safeFilename,
@@ -51,7 +50,8 @@ export async function storeAttachments(
 			size: bytes.byteLength,
 			content_id: att.contentId || null,
 			disposition: att.disposition,
-		});
-	}
-	return results;
+		};
+	});
+
+	return Promise.all(uploads);
 }
