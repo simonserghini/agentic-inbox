@@ -87,6 +87,15 @@ interface EmailData {
 	thread_id?: string | null;
 	message_id?: string | null;
 	raw_headers?: string | null;
+	// Decision metadata
+	priority?: string | null;
+	category?: string | null;
+	recommended_action?: string | null;
+	review_status?: string | null;
+	decision_reason?: string | null;
+	confidence?: number | null;
+	analyzed_at?: string | null;
+	deferred_until?: string | null;
 }
 
 interface AttachmentData {
@@ -974,6 +983,15 @@ async markThreadRead(threadId: string) {
 					thread_id: email.thread_id ?? null,
 					message_id: email.message_id ?? null,
 					raw_headers: email.raw_headers ?? null,
+					// decision metadata
+					priority: email.priority ?? "P3",
+					category: email.category ?? null,
+					recommended_action: email.recommended_action ?? null,
+					review_status: email.review_status ?? "pending",
+					decision_reason: email.decision_reason ?? null,
+					confidence: email.confidence ?? null,
+					analyzed_at: email.analyzed_at ?? null,
+					deferred_until: email.deferred_until ?? null,
 				})
 				.run();
 

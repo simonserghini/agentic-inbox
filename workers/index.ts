@@ -520,6 +520,48 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 	}
 
 	const originalMessageId = parsedEmail.messageId ? extractMsgId(parsedEmail.messageId) : null;
+	const bodyText = parsedEmail.text || "";
+
+	// -- AI Triage & Classification --
+	let triageResult: any = { priority: "P3", category: "Other", recommended_action: "read", decision_reason: "Initial intake", confidence: 50 };
+	try {
+		const triagePrompt = `You are an expert email triage assistant. Analyze the following email and provide a JSON classification.
+        
+Categories: Meeting, Invoice, Travel, Newsletter, Support, Personal, Project, Other.
+Priorities: P1 (Urgent/Action Required), P2 (Important), P3 (Normal), P4 (Low/Newsletter).
+Actions: reply, archive, delete, read.
+
+Respond ONLY with a JSON object:
+{"priority": "P1-P4", "category": "category_name", "recommended_action": "action_name", "reason": "one_sentence_reason", "confidence": 0-100}
+
+Subject: ${parsedEmail.subject || "(No Subject)"}
+From: ${parsedEmail.from?.address || "Unknown"}
+Content: ${bodyText.substring(0, 1000)}`;
+
+		const aiResponse = await env.AI.run(
+			// @ts-expect-error — model string not in generated union
+			"@cf/meta/llama-3.1-8b-instruct",
+			{
+				messages: [{ role: "user", content: triagePrompt }],
+				max_tokens: 150,
+				temperature: 0,
+			}
+		) as { response?: string };
+
+		const match = (aiResponse.response || "").match(/\{.*\}/s);
+		if (match) {
+			const parsed = JSON.parse(match[0]);
+			triageResult = {
+				priority: parsed.priority || "P3",
+				category: parsed.category || "Other",
+				recommended_action: parsed.recommended_action || "read",
+				decision_reason: parsed.reason || "AI classified",
+				confidence: parsed.confidence || 70,
+			};
+		}
+	} catch (e) {
+		console.error("AI Triage failed:", (e as Error).message);
+	}
 
 	await stub.createEmail(Folders.INBOX, {
 		id: messageId, subject: parsedEmail.subject || "",
@@ -529,6 +571,13 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		body: parsedEmail.html || parsedEmail.text || "",
 		in_reply_to: inReplyTo, email_references: emailReferences.length > 0 ? JSON.stringify(emailReferences) : null,
 		thread_id: threadId, message_id: originalMessageId, raw_headers: JSON.stringify(parsedEmail.headers),
+		// decision metadata
+		priority: triageResult.priority,
+		category: triageResult.category,
+		recommended_action: triageResult.recommended_action,
+		decision_reason: triageResult.decision_reason,
+		confidence: triageResult.confidence,
+		analyzed_at: new Date().toISOString(),
 	}, attachmentData);
 
 	// Index for semantic search
