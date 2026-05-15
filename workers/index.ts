@@ -228,14 +228,10 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 		id: messageId, subject: subject || "", sender: mailboxId.toLowerCase(),
 		recipient: (to || "").toLowerCase(), cc: cc?.toLowerCase() || null, bcc: bcc?.toLowerCase() || null,
 		date: now, body, in_reply_to: in_reply_to || null, email_references: null,
-		thread_id: thread_id || in_reply_to || messageId, scheduled_send_at: scheduled_send_at || null,
+		thread_id: thread_id || in_reply_to || messageId,
 	}, []);
 	if (scheduled_send_at) {
-		stub.ctx.storage.sql.exec(
-			`UPDATE emails SET scheduled_send_at = ? WHERE id = ?`,
-			scheduled_send_at,
-			messageId,
-		);
+		await (stub as any).setDraftScheduledSendAt(messageId, scheduled_send_at);
 	}
 	return c.json({ id: messageId, status: "draft", subject: subject || "", recipient: to || "", date: now, scheduled_send_at }, 201);
 });

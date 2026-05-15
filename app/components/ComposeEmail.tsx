@@ -137,7 +137,7 @@ export default function ComposeEmail() {
 								loading={isSavingDraft}
 								disabled={isSending}
 								icon={<FloppyDiskIcon size={14} />}
-								onClick={handleSaveDraft}
+								onClick={() => handleSaveDraft()}
 							>
 								{isSavingDraft ? "Saving..." : "Draft"}
 							</Button>

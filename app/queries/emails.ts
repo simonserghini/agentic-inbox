@@ -271,6 +271,7 @@ export function useSaveDraft() {
 				in_reply_to?: string;
 				thread_id?: string;
 				draft_id?: string;
+				scheduled_send_at?: string;
 			};
 		}) => api.saveDraft(mailboxId, draft),
 		onSuccess: (_data, { mailboxId }) => invalidate(mailboxId),

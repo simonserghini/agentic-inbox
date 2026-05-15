@@ -705,6 +705,14 @@ export class MailboxDO extends DurableObject<Env> {
 		return [...result] as { id: string; snoozed_until: string }[];
 	}
 
+	async setDraftScheduledSendAt(id: string, scheduledSendAt: string) {
+		this.ctx.storage.sql.exec(
+			`UPDATE emails SET scheduled_send_at = ? WHERE id = ?`,
+			scheduledSendAt,
+			id,
+		);
+	}
+
 	// ── Search (raw SQL — dynamic condition builder) ───────────────
 
 	/**

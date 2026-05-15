@@ -86,8 +86,8 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 	}, [allMessages, draftMessageIds, currentMailbox?.email, email]);
 
 	const moveToFolders = useMemo(() => { const cur = folder || email?.folder_id; return folders.filter((f) => f.id !== cur); }, [folders, folder, email?.folder_id]);
-	const handleSnooze = (until: string) => { if (mailboxId) snoozeEmailMut.mutate({ mailboxId, id: email.id, until }); };
-	const handleUnsnooze = () => { if (mailboxId) unsnoozeEmailMut.mutate({ mailboxId, id: email.id }); };
+	const handleSnooze = (until: string) => { if (mailboxId && email) snoozeEmailMut.mutate({ mailboxId, id: email.id, until }); };
+	const handleUnsnooze = () => { if (mailboxId && email) unsnoozeEmailMut.mutate({ mailboxId, id: email.id }); };
 
 	if (!email) return <EmailPanelSkeleton />;
 

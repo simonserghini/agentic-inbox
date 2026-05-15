@@ -284,10 +284,6 @@ export default function EmailListRoute() {
 		isFetching: isRefreshing,
 	} = useEmails(mailboxId, params, { refetchInterval: 30_000 });
 
-	useNewEmailNotifications(emailIds, folderName, (title, body) => {
-		notify(title, body);
-	});
-
 	const emails = emailData?.emails ?? [];
 	const totalCount = emailData?.totalCount ?? 0;
 	const emailIds = useMemo(() => emails.map((e) => e.id), [emails]);
@@ -299,6 +295,10 @@ export default function EmailListRoute() {
 		if (found) return found.name;
 		return folder ? folder.charAt(0).toUpperCase() + folder.slice(1) : "Inbox";
 	}, [folders, folder]);
+
+	useNewEmailNotifications(emailIds, folderName, (title, body) => {
+		notify(title, body);
+	});
 
 	const isPanelOpen = selectedEmailId !== null || isComposing;
 	const isInbox = folder === Folders.INBOX;
