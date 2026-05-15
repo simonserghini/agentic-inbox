@@ -29,6 +29,15 @@ export const emails = sqliteTable("emails", {
 	thread_id: text("thread_id"),
 	message_id: text("message_id"),
 	raw_headers: text("raw_headers"),
+	// Decision Metadata
+	priority: text("priority").default("P3"), // P1 (High) to P4 (Low)
+	category: text("category"), // e.g. 'Meeting', 'Invoice', 'Newsletter'
+	recommended_action: text("recommended_action"), // 'reply', 'archive', 'delete'
+	review_status: text("review_status").default("pending"), // 'pending', 'done', 'deferred'
+	decision_reason: text("decision_reason"), // AI's explanation
+	confidence: integer("confidence"), // 0-100
+	analyzed_at: text("analyzed_at"),
+	deferred_until: text("deferred_until"),
 });
 
 export const attachments = sqliteTable("attachments", {

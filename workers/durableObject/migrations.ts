@@ -176,4 +176,21 @@ export const mailboxMigrations: Migration[] = [
             INSERT OR IGNORE INTO folders (id, name, is_deletable) VALUES ('snoozed', 'Snoozed', 0);
         `),
 	},
+	{
+		name: "10_add_decision_metadata",
+		sql: txn(`
+            ALTER TABLE emails ADD COLUMN priority TEXT DEFAULT 'P3';
+            ALTER TABLE emails ADD COLUMN category TEXT;
+            ALTER TABLE emails ADD COLUMN recommended_action TEXT;
+            ALTER TABLE emails ADD COLUMN review_status TEXT DEFAULT 'pending';
+            ALTER TABLE emails ADD COLUMN decision_reason TEXT;
+            ALTER TABLE emails ADD COLUMN confidence INTEGER;
+            ALTER TABLE emails ADD COLUMN analyzed_at TEXT;
+            ALTER TABLE emails ADD COLUMN deferred_until TEXT;
+
+            CREATE INDEX idx_emails_review_status ON emails(review_status);
+            CREATE INDEX idx_emails_priority ON emails(priority);
+            CREATE INDEX idx_emails_deferred_until ON emails(deferred_until);
+        `),
+	},
 ];

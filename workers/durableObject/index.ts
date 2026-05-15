@@ -500,33 +500,81 @@ export class MailboxDO extends DurableObject<Env> {
 			attachments: attachmentsByEmail.get(email.id) || [],
 		}));
 	}
+async updateEmail(
+	id: string,
+	updates: { read?: boolean; starred?: boolean },
+) {
+	const { read, starred } = updates;
+	const data: { read?: number; starred?: number } = {};
+	if (read !== undefined) {
+		data.read = read ? 1 : 0;
+	}
+	if (starred !== undefined) {
+		data.starred = starred ? 1 : 0;
+	}
 
-	async updateEmail(
-		id: string,
-		{ read, starred }: { read?: boolean; starred?: boolean },
-	) {
-		const data: { read?: number; starred?: number } = {};
-		if (read !== undefined) {
-			data.read = read ? 1 : 0;
-		}
-		if (starred !== undefined) {
-			data.starred = starred ? 1 : 0;
-		}
-
-		if (Object.keys(data).length === 0) {
-			return this.getEmail(id);
-		}
-
-		this.db
-			.update(schema.emails)
-			.set(data)
-			.where(eq(schema.emails.id, id))
-			.run();
-
+	if (Object.keys(data).length === 0) {
 		return this.getEmail(id);
 	}
 
-	async markThreadRead(threadId: string) {
+	this.db
+		.update(schema.emails)
+		.set(data)
+		.where(eq(schema.emails.id, id))
+		.run();
+
+	return this.getEmail(id);
+}
+
+async updateEmailDecision(
+	id: string,
+	decision: {
+		priority?: string;
+		category?: string;
+		recommended_action?: string;
+		review_status?: string;
+		decision_reason?: string;
+		confidence?: number;
+		deferred_until?: string;
+	},
+) {
+	const updates: any = { ...decision };
+	if (decision.review_status) {
+		updates.analyzed_at = new Date().toISOString();
+	}
+
+	this.db
+		.update(schema.emails)
+		.set(updates)
+		.where(eq(schema.emails.id, id))
+		.run();
+
+	return this.getEmail(id);
+}
+
+async getReviewQueue(options: { page?: number; limit?: number } = {}) {
+	const { page = 1, limit = 25 } = options;
+	const offset = (page - 1) * limit;
+
+	return this.db
+		.select()
+		.from(schema.emails)
+		.where(
+			and(
+				eq(schema.emails.review_status, "pending"),
+				or(
+					sql`${schema.emails.deferred_until} IS NULL`,
+					sql`${schema.emails.deferred_until} <= ${new Date().toISOString()}`,
+				),
+			),
+		)
+		.orderBy(asc(schema.emails.priority), desc(schema.emails.date))
+		.limit(limit)
+		.offset(offset)
+		.all();
+}
+
+async markThreadRead(threadId: string) {
 		this.ctx.storage.sql.exec(
 			`UPDATE emails SET read = 1 WHERE thread_id = ? AND read = 0`,
 			threadId,

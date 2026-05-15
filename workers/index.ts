@@ -240,7 +240,7 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 	const mailboxId = c.req.param("mailboxId")!;
 	const { to, cc, bcc, subject, body, in_reply_to, thread_id, draft_id, scheduled_send_at } = DraftBody.parse(await c.req.json());
 	const stub = c.var.mailboxStub;
-	if (draft_id) await stub.deleteEmail(draft_id); // not atomic — create-then-delete would be safer
+	
 	const messageId = crypto.randomUUID();
 	const now = new Date().toISOString();
 	await stub.createEmail(Folders.DRAFT, {
@@ -249,6 +249,9 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 		date: now, body, in_reply_to: in_reply_to || null, email_references: null,
 		thread_id: thread_id || in_reply_to || messageId,
 	}, []);
+
+	if (draft_id) await stub.deleteEmail(draft_id);
+	
 	if (scheduled_send_at) {
 		await (stub as any).setDraftScheduledSendAt(messageId, scheduled_send_at);
 	}
@@ -309,6 +312,32 @@ app.get("/api/v1/mailboxes/:mailboxId/threads/:threadId", async (c: AppContext) 
 app.post("/api/v1/mailboxes/:mailboxId/threads/:threadId/read", async (c: AppContext) => {
 	await c.var.mailboxStub.markThreadRead(c.req.param("threadId")!);
 	return c.json({ status: "marked_read" });
+});
+
+// -- Triage & Review ------------------------------------------------
+
+app.get("/api/v1/mailboxes/:mailboxId/review-queue", async (c: AppContext) => {
+	const page = intQuery(c, "page");
+	const limit = intQuery(c, "limit");
+	const emails = await (c.var.mailboxStub as any).getReviewQueue({ page, limit });
+	return c.json(emails);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/emails/:id/decision", async (c: AppContext) => {
+	const id = c.req.param("id")!;
+	const body = await c.req.json();
+	const email = await (c.var.mailboxStub as any).updateEmailDecision(id, body);
+	return c.json(email);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/emails/:id/defer", async (c: AppContext) => {
+	const id = c.req.param("id")!;
+	const { until } = await c.req.json();
+	const email = await (c.var.mailboxStub as any).updateEmailDecision(id, {
+		review_status: "deferred",
+		deferred_until: until,
+	});
+	return c.json(email);
 });
 
 // -- Reply / Forward ------------------------------------------------
@@ -450,7 +479,11 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 		mailboxId = allRecipients.find((addr) => allowedAddresses.includes(addr));
 		if (!mailboxId) { console.log(`Ignoring email: no recipient matches EMAIL_ADDRESSES.`); return; }
 	} else { mailboxId = allRecipients[0]; }
+	
 	if (!mailboxId) throw new Error("received email with no valid recipient address");
+	
+	// Sanitize mailboxId to prevent path traversal (e.g. if allRecipients[0] contains '..')
+	mailboxId = mailboxId.replace(/[\/\\:*?"<>|\x00-\x1f]/g, "_").toLowerCase();
 
 	const messageId = crypto.randomUUID();
 	if (!(await env.BUCKET.head(`mailboxes/${mailboxId}.json`))) { console.log(`Ignoring email for ${mailboxId}: mailbox does not exist`); return; }
@@ -460,11 +493,11 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 	const attachmentData: StoredAttachment[] = [];
 	if (parsedEmail.attachments && parsedEmail.attachments.length > 0) {
 		const uploads = parsedEmail.attachments.map(async (att) => {
-			const attId = crypto.randomUUID();
+			const attachmentId = crypto.randomUUID();
 			const filename = (att.filename || "untitled").replace(/[\/\\:*?"<>|\x00-\x1f]/g, "_");
-			await env.BUCKET.put(`attachments/${messageId}/${attId}/${filename}`, att.content);
+			await env.BUCKET.put(`attachments/${messageId}/${attachmentId}/${filename}`, att.content);
 			return {
-				id: attId,
+				id: attachmentId,
 				email_id: messageId,
 				filename,
 				mimetype: att.mimeType,
@@ -530,11 +563,6 @@ async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env
 	ctx.waitUntil(agentStub.fetch(new Request("https://agents/onNewEmail", {
 		method: "POST", headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ mailboxId, emailId: messageId, sender: (parsedEmail.from?.address || "").toLowerCase(), subject: parsedEmail.subject || "", threadId }),
-	})).catch((e) => console.error("Auto-draft trigger failed:", (e as Error).message)));
-}
-
-export { app, receiveEmail };
-sedEmail.subject || "", threadId }),
 	})).catch((e) => console.error("Auto-draft trigger failed:", (e as Error).message)));
 }
 
