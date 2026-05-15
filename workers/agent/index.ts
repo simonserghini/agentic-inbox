@@ -365,6 +365,19 @@ export class EmailAgent extends AIChatAgent<any> {
 	}
 
 	/**
+	 * Send a silent signal to all connected clients to refresh their UI.
+	 */
+	async broadcastUpdate(payload: { type: string; emailId?: string; threadId?: string }) {
+		this.broadcast(JSON.stringify({
+			id: crypto.randomUUID(),
+			role: "assistant",
+			content: "", // empty content = silent signal
+			metadata: { silent_signal: true, ...payload },
+			createdAt: new Date(),
+		}));
+	}
+
+	/**
 	 * Handle HTTP requests to the agent DO. Intercepts /onNewEmail
 	 * before passing to the default AIChatAgent handler.
 	 */
@@ -652,6 +665,9 @@ ${emailBody || "(could not pre-read — use get_email to read it)"}`;
 			];
 
 			await this.persistMessages([...this.messages, ...newMessages]);
+
+			// Trigger a real-time UI refresh
+			await this.broadcastUpdate({ type: "new_email", emailId: emailData.emailId, threadId: emailData.threadId });
 
 			return { status: "draft_generated", text: result.text };
 		} catch (e) {
