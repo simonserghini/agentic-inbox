@@ -13,6 +13,8 @@ export const queryKeys = {
 			["emails", mailboxId, params] as const,
 		detail: (mailboxId: string, emailId: string) =>
 			["emails", mailboxId, emailId] as const,
+		threads: (mailboxId: string, params: Record<string, string>) =>
+			["emails", mailboxId, "threads", params] as const,
 		thread: (mailboxId: string, threadId: string) =>
 			["emails", mailboxId, "thread", threadId] as const,
 	},

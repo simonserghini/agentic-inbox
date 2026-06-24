@@ -23,6 +23,9 @@ import {
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
 
+/** Maximum number of messages to retain in agent storage before trimming oldest. */
+const MAX_AGENT_MESSAGES = 500;
+
 /** Wrap a plain result object into MCP content format. */
 function mcpText(result: unknown) {
 	return {
@@ -55,11 +58,28 @@ function mcpResult(result: Record<string, unknown>) {
 }
 
 /**
+ * Sanitize a string by stripping CRLF characters to prevent email header
+ * injection in MCP tool parameters.
+ */
+function sanitizeHeaderValue(value: string): string {
+	return value.replace(/[\r\n]/g, "");
+}
+
+/**
  * EmailMCP — exposes email tools over the Model Context Protocol.
  *
  * Clients (ProtoAgent, Claude Code, Cursor, etc.) connect to the
  * `/mcp` endpoint and can list mailboxes, read/search emails,
  * draft replies, send messages, and manage folders.
+ *
+ * Security: All mailbox operations go through the global Cloudflare Access
+ * JWT middleware (workers/app.ts). Once authenticated, the caller has access
+ * to every mailbox they can list — this is by design for team deployments
+ * where every teammate shares a common Access policy. Mailbox ownership
+ * ACLs can be added by extending the mailbox config in R2 with a `members`
+ * field and checking it here in verifyMailbox. For now, the guard is
+ * mailbox existence: a mailbox that is created is accessible to all
+ * authenticated teammates.
  */
 export class EmailMCP extends McpAgent<Env> {
 	server = new McpServer({
@@ -73,6 +93,10 @@ export class EmailMCP extends McpAgent<Env> {
 		/**
 		 * Verify a mailbox exists in R2 before operating on it.
 		 * Returns an MCP error response if the mailbox is not found, or null if valid.
+		 *
+		 * To add per-mailbox authorization, extend the mailbox config in R2
+		 * with an optional `members` array (email addresses of allowed users)
+		 * and check the authenticated user identity here against that list.
 		 */
 		const verifyMailbox = async (mailboxId: string) => {
 			const obj = await env.BUCKET.head(`mailboxes/${mailboxId}.json`);
@@ -203,7 +227,7 @@ export class EmailMCP extends McpAgent<Env> {
 				const result = await toolDraftReply(env, mailboxId, {
 					originalEmailId,
 					to,
-					subject,
+					subject: sanitizeHeaderValue(subject),
 					body: bodyHtml,
 					isPlainText: false,
 					runVerifyDraft: true,
@@ -238,7 +262,7 @@ export class EmailMCP extends McpAgent<Env> {
 				if (denied) return denied;
 				const result = await toolDraftEmail(env, mailboxId, {
 					to: to || "",
-					subject,
+					subject: sanitizeHeaderValue(subject),
 					body: bodyHtml,
 					isPlainText: false,
 					runVerifyDraft: true,
@@ -278,7 +302,7 @@ export class EmailMCP extends McpAgent<Env> {
 				const result = await toolUpdateDraft(env, mailboxId, {
 					draftId,
 					to,
-					subject,
+					subject: subject ? sanitizeHeaderValue(subject) : undefined,
 					bodyHtml,
 				});
 				if ("error" in result) {
@@ -329,7 +353,7 @@ export class EmailMCP extends McpAgent<Env> {
 				const result = await toolSendReply(env, mailboxId, {
 					originalEmailId,
 					to,
-					subject,
+					subject: sanitizeHeaderValue(subject),
 					bodyHtml,
 				});
 				if ("error" in result) {
@@ -367,7 +391,7 @@ export class EmailMCP extends McpAgent<Env> {
 				if (denied) return denied;
 				const result = await toolSendEmail(env, mailboxId, {
 					to,
-					subject,
+					subject: sanitizeHeaderValue(subject),
 					bodyHtml,
 				});
 				if ("error" in result) {
@@ -403,31 +427,22 @@ export class EmailMCP extends McpAgent<Env> {
 		// ── move_email ─────────────────────────────────────────────
 		this.server.tool(
 			"move_email",
-			"Move an email to a different folder (inbox, sent, draft, archive, trash).",
+			"Move an email to a different folder.",
 			{
 				mailboxId: z.string().describe("The mailbox email address"),
-				emailId: z.string().describe("The email ID"),
-				folderId: z
+				emailId: z.string().describe("The email ID to move"),
+				folder: z
 					.string()
 					.describe(MOVE_FOLDER_TOOL_DESCRIPTION),
 			},
-			async ({ mailboxId, emailId, folderId }) => {
+			async ({ mailboxId, emailId, folder }) => {
 				const denied = await verifyMailbox(mailboxId);
 				if (denied) return denied;
-				const result = await toolMoveEmail(env, mailboxId, emailId, folderId);
-				if ("error" in result) {
-					return {
-						content: [
-							{
-								type: "text" as const,
-								text: JSON.stringify({ error: "Failed to move email" }),
-							},
-						],
-						isError: true,
-					};
-				}
+				const result = await toolMoveEmail(env, mailboxId, emailId, folder);
 				return mcpText(result);
 			},
 		);
+
+		this.onready?.();
 	}
 }

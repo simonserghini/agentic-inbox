@@ -15,7 +15,7 @@ import {
 	buildThreadingHeaders,
 	listMailboxes,
 } from "./lib/email-helpers";
-import { SendEmailRequestSchema } from "./lib/schemas";
+import { SendEmailRequestSchema, MoveEmailBodySchema, UpdateEmailBodySchema, CreateFolderBodySchema, UpdateFolderBodySchema, DecisionBodySchema, SnoozeBodySchema, DeferBodySchema } from "./lib/schemas";
 import { handleReplyEmail, handleForwardEmail } from "./routes/reply-forward";
 import { Folders } from "../shared/folders";
 import type { Env } from "./types";
@@ -173,9 +173,16 @@ app.get("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 	const threaded = boolQuery(c, "threaded");
 	const page = intQuery(c, "page");
 	const limit = intQuery(c, "limit");
+	const cursor = c.req.query("cursor");
 	const sortColumn = c.req.query("sortColumn") as any;
 	const sortDirection = c.req.query("sortDirection") as "ASC" | "DESC" | undefined;
 	const stub = c.var.mailboxStub;
+
+	// Cursor-based pagination for infinite scroll
+	if (cursor !== undefined && cursor !== null) {
+		const result = await (stub as any).getEmailsCursor({ folder, thread_id, cursor: cursor || undefined, limit });
+		return c.json(result);
+	}
 
 	if (threaded && folder) {
 		const emails = await (stub as any).getThreadedEmails({ folder, page, limit });
@@ -217,7 +224,7 @@ app.post("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 		in_reply_to: in_reply_to || null, email_references: references ? JSON.stringify(references) : null,
 		thread_id: thread_id || in_reply_to || messageId, message_id: outgoingMessageId,
 		raw_headers: JSON.stringify([
-			{ key: "from", value: typeof from === "string" ? from : `${from.name} <${from.email}>` },
+			{ key: "from", value: typeof from === "string" ? from : `${(from.name || "").replace(/[\r\n]/g, "")} <${from.email}>` },
 			{ key: "to", value: Array.isArray(to) ? to.join(", ") : to },
 			...(cc ? [{ key: "cc", value: Array.isArray(cc) ? cc.join(", ") : cc }] : []),
 			...(bcc ? [{ key: "bcc", value: Array.isArray(bcc) ? bcc.join(", ") : bcc }] : []),
@@ -267,7 +274,7 @@ app.get("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 });
 
 app.put("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
-	const { read, starred } = (await c.req.json()) as { read?: boolean; starred?: boolean };
+	const { read, starred } = UpdateEmailBodySchema.parse(await c.req.json());
 	const email = await c.var.mailboxStub.updateEmail(c.req.param("id")!, { read, starred });
 	return email ? c.json(email) : c.json({ error: "Email not found" }, 404);
 });
@@ -287,13 +294,13 @@ app.delete("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 });
 
 app.post("/api/v1/mailboxes/:mailboxId/emails/:id/move", async (c: AppContext) => {
-	const { folderId } = (await c.req.json()) as { folderId: string };
+	const { folderId } = MoveEmailBodySchema.parse(await c.req.json());
 	const success = await c.var.mailboxStub.moveEmail(c.req.param("id")!, folderId);
 	return success ? c.json({ status: "moved" }) : c.json({ error: "Folder not found" }, 400);
 });
 
 app.post("/api/v1/mailboxes/:mailboxId/emails/:id/snooze", async (c: AppContext) => {
-	const { until } = (await c.req.json()) as { until: string };
+	const { until } = SnoozeBodySchema.parse(await c.req.json());
 	const success = await c.var.mailboxStub.snoozeEmail(c.req.param("id")!, until);
 	return success ? c.json({ status: "snoozed" }) : c.json({ error: "Email not found" }, 404);
 });
@@ -305,6 +312,16 @@ app.post("/api/v1/mailboxes/:mailboxId/emails/:id/unsnooze", async (c: AppContex
 
 // -- Threads --------------------------------------------------------
 
+app.get("/api/v1/mailboxes/:mailboxId/threads", async (c: AppContext) => {
+	const folder = c.req.query("folder");
+	const page = intQuery(c, "page");
+	const limit = intQuery(c, "limit");
+	const stub = c.var.mailboxStub as any;
+	const threads = await stub.getThreads({ folder, page, limit });
+	const totalCount = await stub.countThreads({ folder });
+	return c.json({ threads, totalCount });
+});
+
 app.get("/api/v1/mailboxes/:mailboxId/threads/:threadId", async (c: AppContext) => {
 	return c.json(await (c.var.mailboxStub as any).getThreadEmails(c.req.param("threadId")!));
 });
@@ -312,6 +329,52 @@ app.get("/api/v1/mailboxes/:mailboxId/threads/:threadId", async (c: AppContext) 
 app.post("/api/v1/mailboxes/:mailboxId/threads/:threadId/read", async (c: AppContext) => {
 	await c.var.mailboxStub.markThreadRead(c.req.param("threadId")!);
 	return c.json({ status: "marked_read" });
+});
+
+// -- Batch Operations -----------------------------------------------
+
+app.post("/api/v1/mailboxes/:mailboxId/batch/move", async (c: AppContext) => {
+	const { ids, folderId } = await c.req.json() as { ids: string[]; folderId: string };
+	if (!Array.isArray(ids) || ids.length === 0) {
+		return c.json({ error: "ids must be a non-empty array" }, 400);
+	}
+	if (!folderId) return c.json({ error: "folderId is required" }, 400);
+	const result = await (c.var.mailboxStub as any).batchMoveEmails(ids, folderId);
+	return c.json(result);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/batch/delete", async (c: AppContext) => {
+	const { ids } = await c.req.json() as { ids: string[] };
+	if (!Array.isArray(ids) || ids.length === 0) {
+		return c.json({ error: "ids must be a non-empty array" }, 400);
+	}
+	const result = await (c.var.mailboxStub as any).batchDeleteEmails(ids);
+	return c.json(result);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/batch/read", async (c: AppContext) => {
+	const { ids, read } = await c.req.json() as { ids: string[]; read: boolean };
+	if (!Array.isArray(ids) || ids.length === 0) {
+		return c.json({ error: "ids must be a non-empty array" }, 400);
+	}
+	const result = await (c.var.mailboxStub as any).batchMarkRead(ids, read);
+	return c.json(result);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/mark-all-read", async (c: AppContext) => {
+	const folder = c.req.query("folder") || "inbox";
+	const result = await (c.var.mailboxStub as any).markAllRead(folder);
+	return c.json(result);
+});
+
+app.post("/api/v1/mailboxes/:mailboxId/empty-trash", async (c: AppContext) => {
+	const result = await (c.var.mailboxStub as any).emptyTrash();
+	return c.json(result);
+});
+
+app.get("/api/v1/mailboxes/:mailboxId/smart-inbox", async (c: AppContext) => {
+	const result = await (c.var.mailboxStub as any).getSmartInbox();
+	return c.json(result);
 });
 
 // -- Triage & Review ------------------------------------------------
@@ -325,14 +388,14 @@ app.get("/api/v1/mailboxes/:mailboxId/review-queue", async (c: AppContext) => {
 
 app.post("/api/v1/mailboxes/:mailboxId/emails/:id/decision", async (c: AppContext) => {
 	const id = c.req.param("id")!;
-	const body = await c.req.json();
+	const body = DecisionBodySchema.parse(await c.req.json());
 	const email = await (c.var.mailboxStub as any).updateEmailDecision(id, body);
 	return c.json(email);
 });
 
 app.post("/api/v1/mailboxes/:mailboxId/emails/:id/defer", async (c: AppContext) => {
 	const id = c.req.param("id")!;
-	const { until } = await c.req.json();
+	const { until } = DeferBodySchema.parse(await c.req.json());
 	const email = await (c.var.mailboxStub as any).updateEmailDecision(id, {
 		review_status: "deferred",
 		deferred_until: until,
@@ -350,7 +413,7 @@ app.post("/api/v1/mailboxes/:mailboxId/emails/:id/forward", handleForwardEmail);
 app.get("/api/v1/mailboxes/:mailboxId/folders", async (c: AppContext) => c.json(await c.var.mailboxStub.getFolders()));
 
 app.post("/api/v1/mailboxes/:mailboxId/folders", async (c: AppContext) => {
-	const { name } = (await c.req.json()) as { name: string };
+	const { name } = CreateFolderBodySchema.parse(await c.req.json());
 	const slug = slugify(name);
 	if (!slug) return c.json({ error: "Folder name must contain alphanumeric characters" }, 400);
 	const f = await c.var.mailboxStub.createFolder(slug, name);
@@ -358,7 +421,7 @@ app.post("/api/v1/mailboxes/:mailboxId/folders", async (c: AppContext) => {
 });
 
 app.put("/api/v1/mailboxes/:mailboxId/folders/:id", async (c: AppContext) => {
-	const { name } = (await c.req.json()) as { name: string };
+	const { name } = UpdateFolderBodySchema.parse(await c.req.json());
 	const f = await c.var.mailboxStub.updateFolder(c.req.param("id")!, name);
 	return f ? c.json(f) : c.json({ error: "Folder not found" }, 404);
 });

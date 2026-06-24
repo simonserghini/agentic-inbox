@@ -1,4 +1,4 @@
-import { Button, Pagination, Tooltip } from "@cloudflare/kumo";
+import { Button, Loader, Pagination, Tooltip } from "@cloudflare/kumo";
 import {
 	ArchiveIcon,
 	ArrowBendUpLeftIcon,
@@ -14,20 +14,24 @@ import {
 	TrayIcon,
 	XIcon,
 } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "react-router";
 import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
+import api from "~/services/api";
 import MailboxSplitView from "~/components/MailboxSplitView";
+import ThreadList from "~/components/ThreadList";
 import { getSnippetText } from "~/lib/utils";
 import {
 	useDeleteEmail,
 	useEmails,
+	useInfiniteEmails,
 	useMarkThreadRead,
 	useMoveEmail,
 	useSnoozeEmail,
+	useThreads,
 	useUnsnoozeEmail,
 	useUpdateEmail,
 } from "~/queries/emails";
@@ -267,6 +271,26 @@ export default function EmailListRoute() {
 	const unsnoozeEmail = useUnsnoozeEmail();
 	const [snoozePickerOpen, setSnoozePickerOpen] = useState<string | null>(null);
 	const [undoSendId, setUndoSendId] = useState<string | null>(null);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [threaded, setThreaded] = useState(() => {
+		// Default to threaded view, persist preference in localStorage
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("agentic-inbox-threaded");
+			if (saved !== null) return saved === "true";
+		}
+		return true;
+	});
+
+	const toggleThreaded = () => {
+		setThreaded((prev) => {
+			const next = !prev;
+			if (typeof window !== "undefined") {
+				localStorage.setItem("agentic-inbox-threaded", String(next));
+			}
+			return next;
+		});
+		closePanel();
+	};
 
 	const params = useMemo(
 		() => ({
@@ -279,14 +303,74 @@ export default function EmailListRoute() {
 
 	const { notify } = useNotifications();
 
+	const [smartMode, setSmartMode] = useState(false);
+
+	const { data: smartData } = useQuery<any>({
+		queryKey: ["smart-inbox", mailboxId],
+		queryFn: () => api.get<any>(`/api/v1/mailboxes/${mailboxId}/smart-inbox`),
+		enabled: !!mailboxId && smartMode,
+		refetchInterval: 30_000,
+	});
+
+	const smartGroups = smartData?.groups ?? {};
+	const smartSections = useMemo(() => {
+		const order = ["Action Required", "Invoices", "Travel", "Newsletters", "Other", "uncategorized"];
+		return order.filter((cat) => smartGroups[cat]?.length > 0);
+	}, [smartGroups]);
+
 	const {
 		data: emailData,
 		isFetching: isRefreshing,
-	} = useEmails(mailboxId, params, { refetchInterval: 30_000 });
+	} = useEmails(mailboxId, params, { refetchInterval: 30_000, enabled: !threaded && !smartMode });
+
+	const {
+		data: threadData,
+		isFetching: isThreadRefreshing,
+	} = useThreads(mailboxId, params, { enabled: threaded });
+
+	// Infinite scroll query — used when NOT in threaded mode and not in pagination mode
+	const {
+		data: infiniteData,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+		isFetching: isInfiniteFetching,
+	} = useInfiniteEmails(mailboxId, { folder: params.folder || "" }, {
+		enabled: !threaded,
+	});
+
+	// Flatten infinite scroll pages
+	const infiniteEmails = useMemo(() => {
+		if (!infiniteData) return [];
+		return infiniteData.pages.flatMap((page) => page.emails);
+	}, [infiniteData]);
+
+	const threads = threadData?.threads ?? [];
+	const threadTotalCount = threadData?.totalCount ?? 0;
 
 	const emails = emailData?.emails ?? [];
 	const totalCount = emailData?.totalCount ?? 0;
+	const displayTotal = threaded ? threadTotalCount : totalCount;
 	const emailIds = useMemo(() => emails.map((e) => e.id), [emails]);
+
+	// IntersectionObserver sentinel for infinite scroll
+	const loadMoreRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const el = loadMoreRef.current;
+		if (!el || threaded) return;
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+					fetchNextPage();
+				}
+			},
+			{ rootMargin: "200px" },
+		);
+
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [threaded, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
 	const { data: folders = [] } = useFolders(mailboxId);
 
@@ -528,6 +612,14 @@ export default function EmailListRoute() {
 		},
 		onStar: handleStar,
 		onToggleRead: handleToggleRead,
+		onArchive: (id) => {
+			if (mailboxId) {
+				moveEmail.mutate({ mailboxId, id, folderId: Folders.ARCHIVE });
+				addToast("Archived", () => {
+					moveEmail.mutate({ mailboxId, id, folderId: Folders.INBOX });
+				});
+			}
+		},
 		onDelete: handleKeyDelete,
 		onCompose: () => startCompose(),
 		onSearch: handleSearch,
@@ -548,14 +640,127 @@ export default function EmailListRoute() {
 		setHoverTarget(null);
 	};
 
-	const isShowingEmptyInbox = !isRefreshing && emails.length === 0 && isInbox;
+	const isRefreshingAny = threaded ? isThreadRefreshing : (isRefreshing || isInfiniteFetching);
+	const effectiveEmails = infiniteEmails.length > 0 ? infiniteEmails : emails;
+	const isShowingEmptyInbox = !isRefreshingAny && (threaded ? threads.length : effectiveEmails.length) === 0 && isInbox;
+
+	// Handle thread click: select the thread and load thread emails
+	const handleThreadClick = (threadId: string) => {
+		selectEmail(threadId);
+	};
+
+	const handleComposeReply = (mode: "reply" | "reply-all", sender: string, subject: string) => {
+		// Find the actual email in the thread to pass as originalEmail
+		startCompose({ mode, originalEmail: { sender, subject } as any });
+	};
+
+	const qc = queryClient;
+
+	// ── Batch selection ────────────────────────────────────────────
+
+	const toggleSelect = (id: string) => {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	};
+
+	const selectAll = () => {
+		const ids = threaded ? threads.map((t) => t.thread_id) : emails.map((e) => e.id);
+		setSelectedIds(new Set(ids));
+	};
+
+	const clearSelection = () => setSelectedIds(new Set());
+
+	const handleBatchMove = (folderId: string) => {
+		if (!mailboxId || selectedIds.size === 0) return;
+		api.batchMoveEmails(mailboxId, [...selectedIds], folderId).then(() => {
+			clearSelection();
+			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
+			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
+		});
+	};
+
+	const handleBatchDelete = () => {
+		if (!mailboxId || selectedIds.size === 0) return;
+		api.batchDeleteEmails(mailboxId, [...selectedIds]).then(() => {
+			clearSelection();
+			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
+			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
+		});
+	};
+
+	const handleBatchRead = (read: boolean) => {
+		if (!mailboxId || selectedIds.size === 0) return;
+		api.batchMarkRead(mailboxId, [...selectedIds], read).then(() => {
+			clearSelection();
+			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
+			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
+		});
+	};
+
+	const selectedCount = selectedIds.size;
 
 	return (
 		<MailboxSplitView
 			selectedEmailId={selectedEmailId}
 			isComposing={isComposing}
+			onNavigate={(dir) => {
+				const ids = effectiveEmails.map((e) => e.id);
+				const idx = ids.indexOf(selectedEmailId || "");
+				if (dir === "next" && idx < ids.length - 1) selectEmail(ids[idx + 1]);
+				if (dir === "prev" && idx > 0) selectEmail(ids[idx - 1]);
+			}}
 		>
 			<div ref={sentinelRef} className="absolute top-0 left-0 right-0 h-px pointer-events-none" />
+
+			{/* Batch selection toolbar */}
+			{selectedCount > 0 && (
+				<div className="flex items-center gap-2 px-4 py-2 bg-kumo-brand/10 border-b border-kumo-line shrink-0 animate-fade-in">
+					<Button variant="ghost" size="sm" onClick={clearSelection}>
+						<XIcon size={14} className="mr-1" />
+						{selectedCount} selected
+					</Button>
+					<div className="flex-1" />
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<ArchiveIcon size={14} />}
+						onClick={() => handleBatchMove(Folders.ARCHIVE)}
+					>
+						Archive
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<EnvelopeOpenIcon size={14} />}
+						onClick={() => handleBatchRead(true)}
+					>
+						Mark Read
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<EnvelopeSimpleIcon size={14} />}
+						onClick={() => handleBatchRead(false)}
+					>
+						Mark Unread
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<TrashIcon size={14} />}
+						onClick={handleBatchDelete}
+					>
+						Delete
+					</Button>
+					<Button variant="ghost" size="sm" onClick={selectAll}>
+						Select All
+					</Button>
+				</div>
+			)}
 
 			<div
 				ref={headerRef}
@@ -563,14 +768,75 @@ export default function EmailListRoute() {
 					isScrolled ? "shadow-sm shadow-kumo-line/20" : ""
 				}`}
 			>
-				<h1 className="text-lg font-semibold text-kumo-default">
-					{folderName}
-				</h1>
+				<div className="flex items-center gap-3">
+					<h1 className="text-lg font-semibold text-kumo-default">
+						{folderName}
+					</h1>
+					{folder === Folders.INBOX && (
+						<Tooltip content={smartMode ? "Switch to regular inbox" : "Smart Inbox — AI-grouped"} side="bottom" asChild>
+							<Button
+								variant={smartMode ? "secondary" : "ghost"}
+								size="sm"
+								onClick={() => setSmartMode(!smartMode)}
+								aria-label={smartMode ? "Regular inbox" : "Smart Inbox"}
+							>
+								{smartMode ? "Smart ✓" : "Smart"}
+							</Button>
+						</Tooltip>
+					)}
+					{!smartMode && (
+						<Tooltip content={threaded ? "Switch to flat list" : "Group by threads"} side="bottom" asChild>
+							<Button
+								variant={threaded ? "secondary" : "ghost"}
+								size="sm"
+								onClick={toggleThreaded}
+								aria-label={threaded ? "Switch to flat list" : "Group by threads"}
+							>
+								{threaded ? "Threaded" : "Flat"}
+							</Button>
+						</Tooltip>
+					)}
+				</div>
 				<div className="flex items-center gap-1">
-					{totalCount > 0 && (
+					{displayTotal > 0 && (
 						<span className="text-sm text-kumo-subtle mr-2 hidden sm:inline">
-							{totalCount} conversation{totalCount !== 1 ? "s" : ""}
+							{displayTotal} conversation{displayTotal !== 1 ? "s" : ""}
 						</span>
+					)}
+					{folder !== Folders.TRASH && (
+						<Tooltip content="Mark all as read" side="bottom" asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								icon={<EnvelopeOpenIcon size={16} />}
+								onClick={() => {
+									if (!mailboxId) return;
+									api.post(`/api/v1/mailboxes/${mailboxId}/mark-all-read?folder=${folder || "inbox"}`, {}).then(() => {
+										handleRefresh();
+									});
+								}}
+							>
+								Mark All Read
+							</Button>
+						</Tooltip>
+					)}
+					{folder === Folders.TRASH && displayTotal > 0 && (
+						<Tooltip content="Permanently delete all emails in trash" side="bottom" asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								icon={<TrashIcon size={16} />}
+								onClick={() => {
+									if (!mailboxId) return;
+									api.post(`/api/v1/mailboxes/${mailboxId}/empty-trash`, {}).then(() => {
+										handleRefresh();
+										addToast("Trash emptied");
+									});
+								}}
+							>
+								Empty Trash
+							</Button>
+						</Tooltip>
 					)}
 					<Tooltip
 						content={isRefreshing ? "Refreshing..." : "Refresh"}
@@ -596,11 +862,87 @@ export default function EmailListRoute() {
 			</div>
 
 			<div className="flex-1 overflow-y-auto" ref={scrollRef}>
-				{isRefreshing && emails.length === 0 ? (
+				{smartMode && folder === Folders.INBOX ? (
+					smartSections.length > 0 ? (
+						<div className="flex flex-col">
+							{smartSections.map((category) => {
+								const emails = smartGroups[category] || [];
+								const labels: Record<string, { icon: React.ReactNode; color: string }> = {
+									"Action Required": { icon: <StarIcon size={14} weight="fill" className="text-kumo-warning" />, color: "border-l-kumo-warning bg-kumo-warning/5" },
+									"Invoices": { icon: <FileIcon size={14} className="text-kumo-brand" />, color: "border-l-kumo-brand bg-kumo-brand/5" },
+									"Travel": { icon: <PaperPlaneTiltIcon size={14} className="text-kumo-success" />, color: "border-l-kumo-success bg-kumo-success/5" },
+									"Newsletters": { icon: <EnvelopeSimpleIcon size={14} className="text-kumo-subtle" />, color: "border-l-kumo-subtle bg-kumo-tint" },
+								};
+								const label = labels[category] || { icon: null, color: "bg-kumo-tint" };
+								return (
+									<div key={category} className="border-b border-kumo-line last:border-b-0">
+										<div className={`flex items-center gap-2 px-4 py-2 border-l-2 ${label.color}`}>
+											{label.icon}
+											<span className="text-xs font-semibold uppercase tracking-wider text-kumo-subtle">
+												{category}
+											</span>
+											<span className="text-xs text-kumo-subtle ml-auto">
+												{emails.length}
+											</span>
+										</div>
+										{emails.map((email: Email) => {
+											const isSelected = selectedEmailId === email.id;
+											return (
+												<div
+													key={email.id}
+													role="button"
+													tabIndex={0}
+													onClick={() => handleRowClick(email)}
+													className={`group flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-kumo-line/30 last:border-b-0 ${
+														isSelected ? "bg-kumo-tint" : "hover:bg-kumo-tint"
+													}`}
+												>
+													{!email.read && <div className="w-2 h-2 rounded-full bg-kumo-brand shrink-0" />}
+													<span className={`text-sm truncate flex-1 ${!email.read ? "font-semibold" : ""}`}>
+														{email.sender.split("@")[0]} — {email.subject}
+													</span>
+													<span className="text-xs text-kumo-subtle shrink-0">
+														{formatListDate(email.date)}
+													</span>
+												</div>
+											);
+										})}
+									</div>
+								);
+							})}
+						</div>
+					) : (
+						<FolderEmptyState folder={folder} onCompose={() => startCompose()} />
+					)
+				) : isRefreshingAny && (threaded ? threads.length : effectiveEmails.length) === 0 ? (
 					<EmailListSkeleton />
-				) : emails.length > 0 ? (
+				) : threaded ? (
+					threads.length > 0 ? (
+						<>
+							<ThreadList
+								threads={threads}
+								selectedThreadId={selectedEmailId}
+								onSelectThread={handleThreadClick}
+								onComposeReply={handleComposeReply}
+								selectedIds={selectedIds}
+								toggleSelect={toggleSelect}
+							/>
+							{threadTotalCount > PAGE_SIZE && (
+								<div className="px-4 py-3 border-t border-kumo-line flex justify-center">
+									<Pagination
+										page={page}
+										totalPages={Math.ceil(threadTotalCount / PAGE_SIZE)}
+										onPageChange={setPage}
+									/>
+								</div>
+							)}
+						</>
+					) : (
+						<FolderEmptyState folder={folder} onCompose={() => startCompose()} />
+					)
+				) : effectiveEmails.length > 0 ? (
 					<div ref={listRef}>
-						{emails.map((email, index) => {
+						{effectiveEmails.map((email, index) => {
 							const isSelected = selectedEmailId === email.id;
 							const snippet = getSnippetText(email.snippet);
 							const staggerClass = animateRows && index < 20 ? `stagger-${index + 1}` : "";
@@ -771,8 +1113,27 @@ export default function EmailListRoute() {
 				)}
 			</div>
 
-			{/* Pagination */}
-			{totalCount > PAGE_SIZE && (
+			{/* Infinite scroll sentinel — loads more when visible */}
+			{!threaded && (
+				<>
+					<div ref={loadMoreRef} className="h-1" />
+					{isFetchingNextPage && (
+						<div className="flex justify-center py-4">
+							<Loader size="base" />
+						</div>
+					)}
+					{!hasNextPage && effectiveEmails.length > 0 && (
+						<div className="flex justify-center py-3 border-t border-kumo-line shrink-0">
+							<span className="text-xs text-kumo-subtle">
+								{effectiveEmails.length} email{effectiveEmails.length !== 1 ? "s" : ""}
+							</span>
+						</div>
+					)}
+				</>
+			)}
+
+			{/* Pagination (only shown in threaded mode or when infinite scroll is not active) */}
+			{threaded && totalCount > PAGE_SIZE && (
 				<div className="flex justify-center py-3 border-t border-kumo-line shrink-0">
 					<Pagination
 						page={page}

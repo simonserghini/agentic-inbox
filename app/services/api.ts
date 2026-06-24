@@ -57,14 +57,17 @@ async function request<T>(
 	}
 }
 
-function get<T>(url: string, opts?: { params?: Record<string, string>; responseType?: string; signal?: AbortSignal }) {
-	const query = opts?.params ? `?${new URLSearchParams(opts.params)}` : "";
-	return request<T>(`${url}${query}`, {
-		method: "GET",
-		signal: opts?.signal,
-		...(opts?.responseType === "blob" ? { headers: { Accept: "*/*" } } : {}),
-	});
+function get<T>(url: string, opts?: { params?: Record<string, string>; responseType?: string; signal?: AbortSignal }): Promise<T> {
+  const query = opts?.params ? `?${new URLSearchParams(opts.params)}` : "";
+  return request<T>(`${url}${query}`, {
+    method: "GET",
+    signal: opts?.signal,
+    ...(opts?.responseType === "blob" ? { headers: { Accept: "*/*" } } : {}),
+  });
 }
+
+// Expose raw get for one-off queries (Smart Inbox, etc.)
+(api as any).get = get;
 
 function post<T>(url: string, body?: unknown, opts?: { signal?: AbortSignal }) {
 	return request<T>(url, {
@@ -123,6 +126,14 @@ const api = {
 		del<void>(`/api/v1/mailboxes/${mailboxId}/emails/${id}`),
 	moveEmail: (mailboxId: string, id: string, folderId: string) =>
 		post<void>(`/api/v1/mailboxes/${mailboxId}/emails/${id}/move`, { folderId }),
+	batchMoveEmails: (mailboxId: string, ids: string[], folderId: string) =>
+		post<{ moved: number }>(`/api/v1/mailboxes/${mailboxId}/batch/move`, { ids, folderId }),
+	batchDeleteEmails: (mailboxId: string, ids: string[]) =>
+		post<{ deleted: number }>(`/api/v1/mailboxes/${mailboxId}/batch/delete`, { ids }),
+	batchMarkRead: (mailboxId: string, ids: string[], read: boolean) =>
+		post<{ updated: number }>(`/api/v1/mailboxes/${mailboxId}/batch/read`, { ids, read }),
+	listThreads: (mailboxId: string, params: Record<string, string>) =>
+		get<{ threads: any[]; totalCount: number }>(`/api/v1/mailboxes/${mailboxId}/threads`, { params }),
 	getThread: (mailboxId: string, threadId: string, opts?: { signal?: AbortSignal }) =>
 		get<Email[]>(`/api/v1/mailboxes/${mailboxId}/threads/${threadId}`, { signal: opts?.signal }),
 	markThreadRead: (mailboxId: string, threadId: string) =>

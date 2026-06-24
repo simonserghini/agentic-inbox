@@ -53,6 +53,8 @@ export async function sendEmail(
 
 	if (params.html) message.html = params.html;
 	if (params.text) message.text = params.text;
+	// Sanitize subject to prevent header injection
+	message.subject = sanitizeHeaderValue(params.subject);
 	if (params.cc) message.cc = params.cc;
 	if (params.bcc) message.bcc = params.bcc;
 	if (params.replyTo) message.replyTo = params.replyTo;
@@ -81,9 +83,15 @@ export async function sendEmail(
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
+/** Strip CRLF characters to prevent email header injection. */
+function sanitizeHeaderValue(value: string): string {
+	return value.replace(/[\r\n]/g, "");
+}
+
 function normalizeAddress(addr: string | { email: string; name: string }): string {
-	if (typeof addr === "string") return addr;
-	return addr.name ? `${addr.name} <${addr.email}>` : addr.email;
+	if (typeof addr === "string") return sanitizeHeaderValue(addr);
+	const safeName = addr.name ? sanitizeHeaderValue(addr.name) : "";
+	return safeName ? `${safeName} <${addr.email}>` : addr.email;
 }
 
 function normalizeAddressList(val: string | string[]): string[] {
@@ -105,6 +113,8 @@ export async function sendEmailViaResend(
 
 	if (params.html) body.html = params.html;
 	if (params.text) body.text = params.text;
+	// Sanitize subject to prevent header injection
+	body.subject = sanitizeHeaderValue(params.subject);
 	if (params.cc) body.cc = normalizeAddressList(params.cc);
 	if (params.bcc) body.bcc = normalizeAddressList(params.bcc);
 	if (params.replyTo) body.reply_to = normalizeAddress(params.replyTo);

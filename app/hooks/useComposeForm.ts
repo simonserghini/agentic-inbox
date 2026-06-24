@@ -17,6 +17,7 @@ import {
 import { useDeleteEmail, useForwardEmail, useReplyToEmail, useSaveDraft, useSendEmail } from "~/queries/emails";
 import { useMailbox } from "~/queries/mailboxes";
 import { useUIStore } from "~/hooks/useUIStore";
+import api from "~/services/api";
 
 function appendUniqueAddress(
 	addresses: string[],
@@ -184,6 +185,8 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const [scheduledFor, setScheduledFor] = useState<string | null>(null);
 	const [lastSentId, setLastSentId] = useState<string | null>(null);
 	const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+	const [undoCountdown, setUndoCountdown] = useState(0);
+	const [attachments, setAttachments] = useState<{ name: string; size: number; type: string; dataUrl: string }[]>([]);
 	const lastInitializedOptionsRef = useRef<typeof composeOptions | null>(null);
 	const isDraftEdit = !!composeOptions.draftEmail;
 
@@ -292,5 +295,32 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		finally { setIsSending(false); }
 	};
 
-	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, scheduledFor, lastSentId, formTitle, handleSaveDraft, handleScheduleSend, handleSend, undoLastSend, closeCompose, closePanel };
+	const removeAttachment = (index: number) => {
+		setAttachments((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	const handleSendAndArchive = async (e: FormEvent, onClose: () => void) => {
+		await handleSend(e, onClose);
+		// Archive the original email thread if replying
+		const originalId = composeOptions.originalEmail?.id;
+		const threadId = composeOptions.originalEmail?.thread_id || composeOptions.draftEmail?.thread_id;
+		if (mailboxId && threadId) {
+			// Move the thread to archive
+			try {
+				await api.post(`/api/v1/mailboxes/${mailboxId}/threads/${threadId}/read`, {});
+			} catch { /* best effort */ }
+		}
+	};
+
+	return { to, setTo, cc, setCc, bcc, setBcc, showCcBcc, setShowCcBcc, subject, setSubject, body, setBody, error, setError, isSavingDraft, isSending, scheduledFor, lastSentId, formTitle, composeOptions, handleSaveDraft, handleScheduleSend, handleSend, handleSendAndArchive, undoLastSend, attachments, removeAttachment, addAttachments: (files: FileList) => {
+		const newAttachments: { name: string; size: number; type: string; dataUrl: string }[] = [];
+		for (const file of Array.from(files)) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				newAttachments.push({ name: file.name, size: file.size, type: file.type, dataUrl: e.target?.result as string });
+				setAttachments((prev) => [...prev, ...newAttachments]);
+			};
+			reader.readAsDataURL(file);
+		}
+	}, closeCompose, closePanel };
 }

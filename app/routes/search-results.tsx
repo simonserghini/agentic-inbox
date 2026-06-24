@@ -3,11 +3,12 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Badge, Button, Loader, Pagination, Tooltip } from "@cloudflare/kumo";
-import { ArrowLeftIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import MailboxSplitView from "~/components/MailboxSplitView";
 import { formatListDate, getSnippetText } from "~/lib/utils";
+import { parseSearchQuery } from "~/lib/search-parser";
 import { useUpdateEmail } from "~/queries/emails";
 import { useSearchEmails, SEARCH_PAGE_SIZE } from "~/queries/search";
 import { useUIStore } from "~/hooks/useUIStore";
@@ -67,6 +68,30 @@ export default function SearchResultsRoute() {
 	const handleRowClick = (email: Email) => { selectEmail(email.id); if (!email.read && mailboxId) updateEmail.mutate({ mailboxId, id: email.id, data: { read: true } }); };
 	const folderDisplayName = (name: string | null | undefined): string => { if (!name) return ""; const map: Record<string, string> = { inbox: "Inbox", sent: "Sent", draft: "Drafts", archive: "Archive", trash: "Trash" }; return map[name.toLowerCase()] || name; };
 
+	// Parse search query into filter chips
+	const searchFilters = useMemo(() => {
+		if (!urlQuery) return [];
+		const parsed = parseSearchQuery(urlQuery);
+		const chips: { label: string; removeQuery: string }[] = [];
+		if (parsed.from) chips.push({ label: `from:${parsed.from}`, removeQuery: urlQuery.replace(/\bfrom:(?:"[^"]*"|\S+)/i, "").trim() });
+		if (parsed.to) chips.push({ label: `to:${parsed.to}`, removeQuery: urlQuery.replace(/\bto:(?:"[^"]*"|\S+)/i, "").trim() });
+		if (parsed.subject) chips.push({ label: `subject:${parsed.subject}`, removeQuery: urlQuery.replace(/\bsubject:(?:"[^"]*"|\S+)/i, "").trim() });
+		if (parsed.is_read !== undefined) chips.push({ label: parsed.is_read ? "is:read" : "is:unread", removeQuery: urlQuery.replace(/\bis:(?:un)?read\b/i, "").trim() });
+		if (parsed.is_starred) chips.push({ label: "is:starred", removeQuery: urlQuery.replace(/\bis:starred\b/i, "").trim() });
+		if (parsed.has_attachment) chips.push({ label: "has:attachment", removeQuery: urlQuery.replace(/\bhas:attachment\b/i, "").trim() });
+		if (parsed.date_start) chips.push({ label: `after:${parsed.date_start.slice(0,10)}`, removeQuery: urlQuery.replace(/\bafter:\S+/i, "").trim() });
+		if (parsed.date_end) chips.push({ label: `before:${parsed.date_end.slice(0,10)}`, removeQuery: urlQuery.replace(/\bbefore:\S+/i, "").trim() });
+		return chips;
+	}, [urlQuery]);
+
+	const removeFilter = (removeQuery: string) => {
+		if (removeQuery) {
+			navigate(`/mailbox/${mailboxId}/search?q=${encodeURIComponent(removeQuery)}`);
+		} else {
+			navigate(`/mailbox/${mailboxId}/emails/inbox`);
+		}
+	};
+
 	return (
 		<MailboxSplitView
 			selectedEmailId={selectedEmailId}
@@ -77,6 +102,24 @@ export default function SearchResultsRoute() {
 					<Tooltip content="Back to inbox" side="bottom" asChild><Button variant="ghost" shape="square" size="sm" icon={<ArrowLeftIcon size={18} />} onClick={() => navigate(`/mailbox/${mailboxId}/emails/inbox`)} aria-label="Back to inbox" /></Tooltip>
 					<div className="min-w-0 flex-1"><h1 className="text-lg font-semibold text-kumo-default truncate">Search Results</h1>{!isLoading && <span className="text-sm text-kumo-subtle">{totalCount} result{totalCount !== 1 ? "s" : ""}{urlQuery ? ` for "${urlQuery}"` : ""}</span>}</div>
 				</div>
+				{searchFilters.length > 0 && (
+					<div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-kumo-line shrink-0 bg-kumo-tint/50 md:px-5">
+						<span className="text-xs text-kumo-subtle mr-1">Filters:</span>
+						{searchFilters.map((chip) => (
+							<span key={chip.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-kumo-base border border-kumo-line text-kumo-strong">
+								{chip.label}
+								<button
+									type="button"
+									onClick={() => removeFilter(chip.removeQuery)}
+									className="p-0.5 rounded-full hover:bg-kumo-tint text-kumo-subtle hover:text-kumo-default"
+									aria-label={`Remove filter ${chip.label}`}
+								>
+									<XIcon size={10} />
+								</button>
+							</span>
+						))}
+					</div>
+				)}
 				<div className="flex-1 overflow-y-auto">
 					{isLoading ? <div className="flex justify-center py-16"><Loader size="lg" /></div> : results.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-24 px-6 text-center">

@@ -3,7 +3,7 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Banner, Button, Dialog, Input, Text, Tooltip } from "@cloudflare/kumo";
-import { CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
+import { ArchiveIcon, CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
@@ -39,11 +39,15 @@ export default function ComposeEmail() {
 		scheduledFor,
 		lastSentId,
 		formTitle,
+		composeOptions,
 		handleSaveDraft,
 		handleScheduleSend,
 		handleSend,
-		undoLastSend,
-	} = useComposeForm(mailboxId, folder);
+			handleSendAndArchive,
+				undoLastSend,
+				attachments,
+				removeAttachment,
+			} = useComposeForm(mailboxId, folder);
 
 	return (
 		<Dialog.Root
@@ -112,6 +116,24 @@ export default function ComposeEmail() {
 							Message
 						</Text>
 						<RichTextEditor value={body} onChange={setBody} />
+						{attachments.length > 0 && (
+							<div className="flex flex-wrap gap-2 mt-2">
+								{attachments.map((att, i) => (
+									<div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-kumo-tint border border-kumo-line text-xs">
+										<span className="max-w-[160px] truncate font-medium">{att.name}</span>
+										<span className="text-kumo-subtle">{(att.size / 1024).toFixed(0)} KB</span>
+										<button
+											type="button"
+											onClick={() => removeAttachment(i)}
+											className="p-0.5 rounded hover:bg-kumo-fill text-kumo-subtle hover:text-kumo-default"
+											aria-label={`Remove ${att.name}`}
+										>
+											<XIcon size={12} />
+										</button>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 					<div className="flex justify-between items-center pt-2">
 						<Button
@@ -172,6 +194,20 @@ export default function ComposeEmail() {
 							>
 								{isSending ? "Sending..." : scheduledFor ? "Send Now" : "Send"}
 							</Button>
+							{composeOptions.mode === "reply" && (
+								<Tooltip content="Send and archive this thread" side="top" asChild>
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										disabled={isSavingDraft || isSending}
+										icon={<ArchiveIcon size={14} />}
+										onClick={(e) => handleSendAndArchive(e, closeComposeModal)}
+									>
+										Send & Archive
+									</Button>
+								</Tooltip>
+							)}
 						</div>
 					</div>
 				</form>

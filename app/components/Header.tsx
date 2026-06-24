@@ -5,56 +5,19 @@
 import { Button, Input, Tooltip } from "@cloudflare/kumo";
 import { BellIcon, BellRingingIcon, BellSlashIcon, GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, XIcon } from "@phosphor-icons/react";
 import ThemeToggle from "~/components/ThemeToggle";
+import SearchInput from "~/components/SearchInput";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useUIStore } from "~/hooks/useUIStore";
 import { useNotifications } from "~/hooks/useNotifications";
 
 export default function Header() {
-	const [searchQuery, setSearchQuery] = useState("");
 	const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-	const { mailboxId } = useParams<{ mailboxId: string }>();
-	const navigate = useNavigate();
-	const location = useLocation();
-	const [searchParams] = useSearchParams();
 	const { toggleSidebar, toggleAgentPanel, isAgentPanelOpen } = useUIStore();
 	const { permission, requestPermission } = useNotifications();
-
-	// Sync search input with URL query param so it stays populated
-	const urlQuery = searchParams.get("q") || "";
-	useEffect(() => {
-		if (location.pathname.includes("/search") && urlQuery) {
-			setSearchQuery(urlQuery);
-		}
-	}, [urlQuery, location.pathname]);
-
-	const performSearch = () => {
-		if (mailboxId && searchQuery.trim()) {
-			const q = searchQuery.trim();
-			navigate(`/mailbox/${mailboxId}/search?q=${encodeURIComponent(q)}`);
-			setIsSearchExpanded(false);
-		}
-	};
-
-	const clearSearch = () => {
-		setSearchQuery("");
-		if (location.pathname.includes("/search") && mailboxId) {
-			navigate(`/mailbox/${mailboxId}/emails/inbox`);
-		}
-	};
-
-	const handleKeyDown = (e: KeyboardEvent) => {
-		if (e.key === "Enter") {
-			performSearch();
-		}
-		if (e.key === "Escape") {
-			if (searchQuery) {
-				clearSearch();
-			} else {
-				setIsSearchExpanded(false);
-			}
-		}
-	};
+	const location = useLocation();
+	const navigate = useNavigate();
+	const { mailboxId } = useParams<{ mailboxId: string }>();
 
 	const isSettingsActive = location.pathname.includes("/settings");
 
@@ -73,39 +36,11 @@ export default function Header() {
 
 			{/* Search - full on desktop, collapsible on mobile */}
 			<div
-				className={`flex-1 max-w-lg transition-all flex items-center gap-1 ${
+				className={`flex-1 max-w-lg transition-all ${
 					isSearchExpanded ? "flex" : "hidden md:flex"
 				}`}
 			>
-				<div className="flex-1 relative flex items-center">
-					<Input
-						className="w-full"
-						aria-label="Search emails"
-						placeholder="Search emails... (try from:name, is:unread, has:attachment)"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						onKeyDown={handleKeyDown}
-					/>
-					{searchQuery && (
-						<button
-							type="button"
-							onClick={clearSearch}
-							className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-kumo-subtle hover:text-kumo-default hover:bg-kumo-tint transition-colors"
-							aria-label="Clear search"
-						>
-							<XIcon size={14} />
-						</button>
-					)}
-				</div>
-				<Tooltip content="Search" side="bottom" asChild>
-					<Button
-						variant="ghost"
-						shape="square"
-						icon={<MagnifyingGlassIcon size={20} />}
-						onClick={performSearch}
-						aria-label="Search"
-					/>
-				</Tooltip>
+				<SearchInput className="w-full" />
 			</div>
 
 			{/* Search toggle button - mobile only, hidden when search is expanded */}

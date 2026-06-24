@@ -93,3 +93,47 @@ export const SendEmailResponseSchema = z.object({
 	id: z.string(),
 	status: z.string(),
 });
+
+// ── Mutation Endpoint Schemas ──────────────────────────────────────
+
+/** Schema for POST /api/v1/mailboxes/:mailboxId/emails/:id/move */
+export const MoveEmailBodySchema = z.object({
+	folderId: z.string().min(1, "folderId is required"),
+});
+
+/** Schema for PUT /api/v1/mailboxes/:mailboxId/emails/:id (read/starred toggle) */
+export const UpdateEmailBodySchema = z.object({
+	read: z.boolean().optional(),
+	starred: z.boolean().optional(),
+});
+
+/** Schema for POST /api/v1/mailboxes/:mailboxId/folders */
+export const CreateFolderBodySchema = z.object({
+	name: z.string().min(1, "Folder name is required").max(200),
+});
+
+/** Schema for PUT /api/v1/mailboxes/:mailboxId/folders/:id */
+export const UpdateFolderBodySchema = z.object({
+	name: z.string().min(1, "Folder name is required").max(200),
+});
+
+/** Schema for POST /api/v1/mailboxes/:mailboxId/emails/:id/decision */
+export const DecisionBodySchema = z.object({
+	review_status: z.string().optional(),
+	category: z.string().optional(),
+	priority: z.string().optional(),
+	recommended_action: z.string().optional(),
+	reason: z.string().optional(),
+	confidence: z.number().min(0).max(100).optional(),
+	decision_notes: z.string().optional(),
+});
+
+/** Schema for POST /api/v1/mailboxes/:mailboxId/emails/:id/snooze */
+export const SnoozeBodySchema = z.object({
+	until: z.string().min(1, "until date is required"),
+});
+
+/** Schema for POST /api/v1/mailboxes/:mailboxId/emails/:id/defer */
+export const DeferBodySchema = z.object({
+	until: z.string().min(1, "until date is required"),
+});

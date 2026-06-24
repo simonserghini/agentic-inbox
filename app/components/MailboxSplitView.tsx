@@ -11,12 +11,14 @@ interface MailboxSplitViewProps {
 	selectedEmailId: string | null;
 	isComposing: boolean;
 	children: ReactNode;
+	onNavigate?: (direction: "next" | "prev") => void;
 }
 
 export default function MailboxSplitView({
 	selectedEmailId,
 	isComposing,
 	children,
+	onNavigate,
 }: MailboxSplitViewProps) {
 	const isPanelOpen = selectedEmailId !== null || isComposing;
 	const [leftWidth, setLeftWidth] = useState(DEFAULT_WIDTH);
@@ -94,11 +96,11 @@ export default function MailboxSplitView({
 						<div className="flex flex-col h-full overflow-y-auto">
 							<ComposePanel />
 							<div className="border-t border-kumo-line">
-								<EmailPanel emailId={selectedEmailId} />
+								<EmailPanel emailId={selectedEmailId} onNavigate={onNavigate} />
 							</div>
 						</div>
 					) : selectedEmailId ? (
-						<EmailPanel emailId={selectedEmailId} />
+						<EmailPanel emailId={selectedEmailId} onNavigate={onNavigate} />
 					) : null}
 				</div>
 			)}

@@ -7,6 +7,7 @@ interface UseKeyboardNavigationOptions {
   onOpen: (id: string) => void;
   onStar: (id: string) => void;
   onToggleRead: (id: string) => void;
+  onArchive: (id: string) => void;
   onDelete: (id: string) => void;
   onCompose: () => void;
   onSearch: () => void;
@@ -20,6 +21,7 @@ export function useKeyboardNavigation({
   onOpen,
   onStar,
   onToggleRead,
+  onArchive,
   onDelete,
   onCompose,
   onSearch,
@@ -93,6 +95,11 @@ export function useKeyboardNavigation({
         case "Delete": {
           e.preventDefault();
           if (selectedId) onDelete(selectedId);
+          break;
+        }
+        case "e": {
+          e.preventDefault();
+          if (selectedId) onArchive(selectedId);
           break;
         }
         case "c": {

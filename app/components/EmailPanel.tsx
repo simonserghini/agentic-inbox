@@ -29,7 +29,7 @@ function EmailPanelSkeleton() {
 	);
 }
 
-export default function EmailPanel({ emailId }: { emailId: string }) {
+export default function EmailPanel({ emailId, onNavigate }: { emailId: string; onNavigate?: (direction: "next" | "prev") => void }) {
 	const { mailboxId, folder } = useParams<{ mailboxId: string; folder: string }>();
 	const { data: email } = useEmail(mailboxId, emailId) as { data?: Email };
 	const { data: threadRepliesRaw } = useThreadReplies(mailboxId, email?.thread_id) as {
@@ -188,6 +188,8 @@ export default function EmailPanel({ emailId }: { emailId: string }) {
 				subject={email.subject}
 				messageCount={allMessages.length}
 				showThreadCount={hasThread}
+				onPrev={onNavigate ? () => onNavigate("prev") : undefined}
+				onNext={onNavigate ? () => onNavigate("next") : undefined}
 			/>
 
 			<div className="flex-1 overflow-y-auto">

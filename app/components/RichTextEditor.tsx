@@ -54,6 +54,39 @@ export default function RichTextEditor({
 				class:
 					"prose prose-sm max-w-none focus:outline-none min-h-[180px] p-3 text-sm [&_blockquote]:border-l-2 [&_blockquote]:border-kumo-line [&_blockquote]:pl-3 [&_blockquote]:text-kumo-subtle [&_blockquote]:bg-kumo-tint [&_blockquote]:py-1 [&_blockquote]:my-2 [&_blockquote]:text-xs [&_blockquote]:rounded-r-sm",
 			},
+			handleDrop: (_view, event, _slice, _moved) => {
+				if (!event.dataTransfer?.files.length) return false;
+				const files = Array.from(event.dataTransfer.files);
+				for (const file of files) {
+					if (!file.type.startsWith("image/")) continue;
+					const reader = new FileReader();
+					reader.onload = (e) => {
+						const url = e.target?.result as string;
+						editor?.chain().focus().setImage({ src: url }).run();
+					};
+					reader.readAsDataURL(file);
+				}
+				return true;
+			},
+			handlePaste: (_view, event) => {
+				const items = event.clipboardData?.items;
+				if (!items) return false;
+				let handled = false;
+				for (const item of Array.from(items)) {
+					if (item.type.startsWith("image/")) {
+						const file = item.getAsFile();
+						if (!file) continue;
+						const reader = new FileReader();
+						reader.onload = (e) => {
+							const url = e.target?.result as string;
+							editor?.chain().focus().setImage({ src: url }).run();
+						};
+						reader.readAsDataURL(file);
+						handled = true;
+					}
+				}
+				return handled;
+			},
 		},
 		onUpdate: ({ editor }) => {
 			onChange(editor.getHTML());

@@ -186,6 +186,75 @@ export class MailboxDO extends DurableObject<Env> {
 	}
 
 	/**
+	 * Cursor-based email listing for infinite scroll. Uses date as cursor.
+	 * Returns `hasMore` to tell the client whether there are more results.
+	 */
+	async getEmailsCursor(options: GetEmailsOptions & { cursor?: string }) {
+		const {
+			folder,
+			thread_id,
+			cursor,
+			limit: rawLimit = 25,
+		} = options;
+
+		const limit = Math.min(Math.max(rawLimit, 1), 100);
+
+		const conditions: string[] = [];
+		const params: (string | number)[] = [];
+		let paramIdx = 0;
+
+		const addParam = (value: string | number) => {
+			paramIdx++;
+			params.push(value);
+			return `?${paramIdx}`;
+		};
+
+		if (folder) {
+			conditions.push(
+				`e.folder_id = (SELECT id FROM folders WHERE name = ${addParam(folder)} OR id = ${addParam(folder)} LIMIT 1)`,
+			);
+			paramIdx--; // fix double increment from two addParam calls
+			params.pop();
+			conditions[conditions.length - 1] = `e.folder_id = (SELECT id FROM folders WHERE name = ?1 OR id = ?1 LIMIT 1)`;
+			params.push(folder);
+		}
+		if (thread_id) {
+			conditions.push(`e.thread_id = ${addParam(thread_id)}`);
+		}
+		if (cursor) {
+			conditions.push(`e.date < ${addParam(cursor)}`);
+		}
+
+		const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+		// Fetch one extra to determine hasMore
+		const query = `
+			SELECT e.id, e.subject, e.sender, e.recipient, e.cc, e.bcc, e.date,
+				e.read, e.starred, e.in_reply_to, e.email_references,
+				e.thread_id, e.folder_id,
+				SUBSTR(e.body, 1, 300) as snippet
+			FROM emails e
+			${where}
+			ORDER BY e.date DESC
+			LIMIT ${limit + 1}
+		`;
+
+		const result = this.ctx.storage.sql.exec(query, ...params);
+		const rows = [...result];
+		const hasMore = rows.length > limit;
+
+		return {
+			emails: rows.slice(0, limit).map((email: any) => ({
+				...email,
+				read: !!email.read,
+				starred: !!email.starred,
+			})),
+			hasMore,
+			nextCursor: rows.length > 0 ? rows[rows.length > limit ? limit - 1 : rows.length - 1].date as string : null,
+		};
+	}
+
+	/**
 	 * Count total emails matching the given filters (for pagination).
 	 */
 	async countEmails(options: { folder?: string; thread_id?: string } = {}) {
@@ -583,7 +652,15 @@ async getReviewQueue(options: { page?: number; limit?: number } = {}) {
 		.all();
 }
 
-async markThreadRead(threadId: string) {
+	async markEmailRead(id: string) {
+		this.db
+			.update(schema.emails)
+			.set({ read: true })
+			.where(eq(schema.emails.id, id))
+			.run();
+	}
+
+	async markThreadRead(threadId: string) {
 		this.ctx.storage.sql.exec(
 			`UPDATE emails SET read = 1 WHERE thread_id = ? AND read = 0`,
 			threadId,
@@ -902,6 +979,235 @@ async markThreadRead(threadId: string) {
 			return String((row as any).thread_id);
 		}
 		return null;
+	}
+
+	// ── Conversation threading — thread list view ──────────────────
+
+	/**
+	 * Get a paginated list of conversation threads for a folder.
+	 * Groups emails by thread_id and returns thread summaries with
+	 * message count, unread count, participants, and latest snippet.
+	 *
+	 * For emails without a thread_id (standalone), each email is its
+	 * own single-message thread.
+	 */
+	async getThreads(options: {
+		folder?: string;
+		page?: number;
+		limit?: number;
+	}) {
+		const { folder, page = 1, limit: rawLimit = 25 } = options;
+		const limit = Math.min(Math.max(rawLimit, 1), 100);
+		const offset = (page - 1) * limit;
+
+		const folderCondition = folder
+			? `WHERE e.folder_id = ?1`
+			: "";
+		const folderParam = folder ? [folder] : [];
+
+		// For emails with thread_id: group by thread_id, take the latest
+		// message as the representative. For emails without thread_id
+		// (standalone): each is its own thread identified by its id.
+		const query = `
+			SELECT
+				COALESCE(e.thread_id, e.id) as thread_id,
+				MAX(e.subject) as subject,
+				COUNT(*) as message_count,
+				SUM(CASE WHEN e.read = 0 THEN 1 ELSE 0 END) as unread_count,
+				MAX(e.date) as last_date,
+				(
+					SELECT e2.sender FROM emails e2
+					WHERE COALESCE(e2.thread_id, e2.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e2.date DESC LIMIT 1
+				) as last_sender,
+				(
+					SELECT e2.recipient FROM emails e2
+					WHERE COALESCE(e2.thread_id, e2.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e2.date DESC LIMIT 1
+				) as last_recipient,
+				(
+					SELECT SUBSTR(e2.body, 1, 300) FROM emails e2
+					WHERE COALESCE(e2.thread_id, e2.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e2.date DESC LIMIT 1
+				) as snippet,
+				(SELECT e2.read FROM emails e2
+					WHERE COALESCE(e2.thread_id, e2.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e2.date DESC LIMIT 1
+				) as read,
+				(SELECT e2.starred FROM emails e2
+					WHERE COALESCE(e2.thread_id, e2.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e2.date DESC LIMIT 1
+				) as starred,
+				(SELECT GROUP_CONCAT(DISTINCT LOWER(e3.sender))
+					FROM emails e3
+					WHERE COALESCE(e3.thread_id, e3.id) = COALESCE(e.thread_id, e.id)
+					AND e3.sender != (
+						SELECT e4.sender FROM emails e4
+						WHERE COALESCE(e4.thread_id, e4.id) = COALESCE(e.thread_id, e.id)
+						ORDER BY e4.date DESC LIMIT 1
+					)
+				) as other_senders,
+				(SELECT e5.folder_id FROM emails e5
+					WHERE COALESCE(e5.thread_id, e5.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e5.date DESC LIMIT 1
+				) as folder_id,
+				(SELECT COUNT(*) FROM emails e6
+					WHERE COALESCE(e6.thread_id, e6.id) = COALESCE(e.thread_id, e.id)
+					AND e6.folder_id = 'draft'
+				) as draft_count,
+				(SELECT e7.has_attachment FROM emails e7
+					WHERE COALESCE(e7.thread_id, e7.id) = COALESCE(e.thread_id, e.id)
+					ORDER BY e7.date DESC LIMIT 1
+				) as has_attachment
+			FROM emails e
+			${folderCondition}
+			GROUP BY COALESCE(e.thread_id, e.id)
+			ORDER BY MAX(e.date) DESC
+			LIMIT ?${folderParam.length + 1} OFFSET ?${folderParam.length + 2}
+		`;
+
+		const params: (string | number)[] = [...folderParam, limit, offset];
+		const result = this.ctx.storage.sql.exec(query, ...params);
+		const threads = [...result].map((row: any) => ({
+			...row,
+			message_count: Number(row.message_count ?? 1),
+			unread_count: Number(row.unread_count ?? 0),
+			draft_count: Number(row.draft_count ?? 0),
+			has_attachment: !!row.has_attachment,
+			read: !!row.read,
+			starred: !!row.starred,
+			other_senders: row.other_senders
+				? String(row.other_senders).split(",").filter(Boolean)
+				: [],
+		}));
+
+		return threads;
+	}
+
+	async countThreads(options: { folder?: string }) {
+		const { folder } = options;
+		const folderCondition = folder
+			? `WHERE folder_id = ?1`
+			: "";
+		const params = folder ? [folder] : [];
+
+		const query = `
+			SELECT COUNT(DISTINCT COALESCE(thread_id, id)) as total
+			FROM emails
+			${folderCondition}
+		`;
+		const result = this.ctx.storage.sql.exec(query, ...params);
+		const row = [...result][0] as { total: number } | undefined;
+		return row?.total ?? 0;
+	}
+
+	// ── Bulk operations ────────────────────────────────────────────
+
+	/**
+	 * Batch-move multiple emails to a folder. Uses a transaction so all
+	 * or none succeed.
+	 */
+	async batchMoveEmails(ids: string[], folderId: string) {
+		if (!ids || ids.length === 0) return { moved: 0 };
+		if (ids.length > 200) {
+			throw new Error("Batch move limit is 200 emails per request");
+		}
+
+		const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
+		const query = `UPDATE emails SET folder_id = ?${ids.length + 1} WHERE id IN (${placeholders})`;
+		this.ctx.storage.sql.exec(query, ...ids, folderId);
+
+		return { moved: ids.length };
+	}
+
+	/**
+	 * Batch-delete multiple emails permanently. Use with caution —
+	 * this is not a soft-delete to Trash.
+	 */
+	async batchDeleteEmails(ids: string[]) {
+		if (!ids || ids.length === 0) return { deleted: 0 };
+		if (ids.length > 200) {
+			throw new Error("Batch delete limit is 200 emails per request");
+		}
+
+		const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
+		const query = `DELETE FROM emails WHERE id IN (${placeholders})`;
+		this.ctx.storage.sql.exec(query, ...ids);
+
+		return { deleted: ids.length };
+	}
+
+	/**
+	 * Batch-mark multiple emails as read.
+	 */
+	async batchMarkRead(ids: string[], read: boolean) {
+		if (!ids || ids.length === 0) return { updated: 0 };
+		if (ids.length > 200) {
+			throw new Error("Batch mark limit is 200 emails per request");
+		}
+
+		const placeholders = ids.map((_, i) => `?${i + 1}`).join(",");
+		const query = `UPDATE emails SET read = ?${ids.length + 1} WHERE id IN (${placeholders})`;
+		this.ctx.storage.sql.exec(query, ...ids, read ? 1 : 0);
+
+		return { updated: ids.length };
+	}
+
+	async getSmartInbox() {
+		const query = `
+			SELECT e.id, e.subject, e.sender, e.recipient, e.cc, e.bcc, e.date,
+				e.read, e.starred, e.in_reply_to, e.email_references,
+				e.thread_id, e.folder_id,
+				COALESCE(e.category, 'uncategorized') as category,
+				COALESCE(e.priority, 'P3') as priority,
+				SUBSTR(e.body, 1, 300) as snippet
+			FROM emails e
+			WHERE e.folder_id = 'inbox'
+			ORDER BY
+				CASE COALESCE(e.priority, 'P3')
+					WHEN 'P1' THEN 0 WHEN 'P2' THEN 1 WHEN 'P3' THEN 2 WHEN 'P4' THEN 3
+					ELSE 3
+				END,
+				e.date DESC
+			LIMIT 100
+		`;
+		const result = this.ctx.storage.sql.exec(query);
+		const emails = [...result].map((e: any) => ({
+			...e,
+			read: !!e.read,
+			starred: !!e.starred,
+		}));
+
+		// Group by category for smart sections
+		const groups: Record<string, any[]> = {};
+		for (const email of emails) {
+			const cat = email.category || "uncategorized";
+			if (!groups[cat]) groups[cat] = [];
+			groups[cat].push(email);
+		}
+
+		return { groups, total: emails.length };
+	}
+
+	async markAllRead(folder: string) {
+		this.ctx.storage.sql.exec(
+			`UPDATE emails SET read = 1 WHERE folder_id = ?1`,
+			folder,
+		);
+		const result = this.ctx.storage.sql.exec(
+			`SELECT changes() as cnt`,
+		);
+		const row = [...result][0] as { cnt: number } | undefined;
+		return { marked: row?.cnt ?? 0 };
+	}
+
+	async emptyTrash() {
+		const count = this.ctx.storage.sql.exec(
+			`SELECT COUNT(*) as cnt FROM emails WHERE folder_id = 'trash'`,
+		);
+		const row = [...count][0] as { cnt: number } | undefined;
+		this.ctx.storage.sql.exec(`DELETE FROM emails WHERE folder_id = 'trash'`);
+		return { deleted: row?.cnt ?? 0 };
 	}
 
 	// ── Rate limiting (raw SQL) ────────────────────────────────────

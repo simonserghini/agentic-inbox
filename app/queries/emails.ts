@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "~/services/api";
 import type { Email } from "~/types";
 import { queryKeys } from "./keys";
@@ -11,6 +11,28 @@ import { queryKeys } from "./keys";
 
 interface EmailListResponse {
 	emails: Email[];
+	totalCount: number;
+}
+
+export interface ThreadSummary {
+	thread_id: string;
+	subject: string;
+	message_count: number;
+	unread_count: number;
+	last_date: string;
+	last_sender: string;
+	last_recipient: string;
+	snippet: string;
+	read: boolean;
+	starred: boolean;
+	folder_id: string;
+	draft_count: number;
+	has_attachment: boolean;
+	other_senders: string[];
+}
+
+interface ThreadListResponse {
+	threads: ThreadSummary[];
 	totalCount: number;
 }
 
@@ -230,19 +252,54 @@ export function useMarkThreadRead() {
 }
 
 export function useDeleteEmail() {
-	const invalidate = useInvalidateEmailData();
+	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
 			mailboxId,
 			id,
 		}: { mailboxId: string; id: string }) =>
 			api.deleteEmail(mailboxId, id),
-		onSuccess: (_data, { mailboxId }) => invalidate(mailboxId),
+		onMutate: async ({ mailboxId, id }) => {
+			const isListQuery = (query: { queryKey: readonly unknown[] }) =>
+				query.queryKey[0] === "emails" &&
+				query.queryKey[1] === mailboxId &&
+				typeof query.queryKey[2] === "object" &&
+				query.queryKey[2] !== null;
+
+			await qc.cancelQueries({ queryKey: ["emails", mailboxId], predicate: isListQuery });
+
+			const listQueries = qc.getQueriesData<{ emails: Email[]; totalCount: number }>({
+				queryKey: ["emails", mailboxId],
+				predicate: isListQuery,
+			});
+
+			for (const [key, cached] of listQueries) {
+				if (!cached?.emails) continue;
+				qc.setQueryData(key, {
+					...cached,
+					emails: cached.emails.filter((e) => e.id !== id),
+					totalCount: cached.totalCount - 1,
+				});
+			}
+
+			return { listQueries };
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.listQueries) {
+				for (const [key, cached] of context.listQueries) {
+					qc.setQueryData(key, cached);
+				}
+			}
+		},
+		onSettled: (_data, _err, { mailboxId }) => {
+			qc.invalidateQueries({ queryKey: ["emails", mailboxId] });
+			qc.invalidateQueries({ queryKey: queryKeys.folders.list(mailboxId) });
+		},
 	});
 }
 
 export function useMoveEmail() {
-	const invalidate = useInvalidateEmailData();
+	const qc = useQueryClient();
 	return useMutation({
 		mutationFn: ({
 			mailboxId,
@@ -250,7 +307,42 @@ export function useMoveEmail() {
 			folderId,
 		}: { mailboxId: string; id: string; folderId: string }) =>
 			api.moveEmail(mailboxId, id, folderId),
-		onSuccess: (_data, { mailboxId }) => invalidate(mailboxId),
+		onMutate: async ({ mailboxId, id }) => {
+			const isListQuery = (query: { queryKey: readonly unknown[] }) =>
+				query.queryKey[0] === "emails" &&
+				query.queryKey[1] === mailboxId &&
+				typeof query.queryKey[2] === "object" &&
+				query.queryKey[2] !== null;
+
+			await qc.cancelQueries({ queryKey: ["emails", mailboxId], predicate: isListQuery });
+
+			const listQueries = qc.getQueriesData<{ emails: Email[]; totalCount: number }>({
+				queryKey: ["emails", mailboxId],
+				predicate: isListQuery,
+			});
+
+			for (const [key, cached] of listQueries) {
+				if (!cached?.emails) continue;
+				qc.setQueryData(key, {
+					...cached,
+					emails: cached.emails.filter((e) => e.id !== id),
+					totalCount: cached.totalCount - 1,
+				});
+			}
+
+			return { listQueries };
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.listQueries) {
+				for (const [key, cached] of context.listQueries) {
+					qc.setQueryData(key, cached);
+				}
+			}
+		},
+		onSettled: (_data, _err, { mailboxId }) => {
+			qc.invalidateQueries({ queryKey: ["emails", mailboxId] });
+			qc.invalidateQueries({ queryKey: queryKeys.folders.list(mailboxId) });
+		},
 	});
 }
 
@@ -301,5 +393,48 @@ export function useForwardEmail() {
 		}: { mailboxId: string; emailId: string; email: unknown }) =>
 			api.forwardEmail(mailboxId, emailId, email),
 		onSuccess: (_data, { mailboxId }) => invalidate(mailboxId),
+	});
+}
+
+export function useThreads(
+	mailboxId: string | undefined,
+	params: Record<string, string>,
+	options?: { enabled?: boolean },
+) {
+	return useQuery<ThreadListResponse>({
+		queryKey: mailboxId
+			? queryKeys.emails.threads(mailboxId, params)
+			: ["emails", "_disabled_threads"],
+		queryFn: () => api.listThreads(mailboxId!, params) as Promise<ThreadListResponse>,
+		enabled: !!mailboxId && (options?.enabled ?? true),
+	});
+}
+
+interface CursorEmailResponse {
+	emails: Email[];
+	hasMore: boolean;
+	nextCursor: string | null;
+}
+
+export function useInfiniteEmails(
+	mailboxId: string | undefined,
+	params: Record<string, string>,
+	options?: { enabled?: boolean },
+) {
+	return useInfiniteQuery<CursorEmailResponse>({
+		queryKey: mailboxId
+			? ["emails", mailboxId, "infinite", params]
+			: ["emails", "_disabled_infinite"],
+		queryFn: async ({ pageParam }) => {
+			const queryParams = pageParam
+				? { ...params, cursor: pageParam as string }
+				: params;
+			return api.listEmails(mailboxId!, queryParams) as Promise<CursorEmailResponse>;
+		},
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) =>
+			lastPage.hasMore ? lastPage.nextCursor : undefined,
+		enabled: !!mailboxId && (options?.enabled ?? true),
+		staleTime: 30_000,
 	});
 }

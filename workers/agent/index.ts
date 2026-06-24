@@ -35,6 +35,9 @@ import {
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
 
+/** Maximum number of messages to retain in agent storage before trimming oldest. */
+const MAX_AGENT_MESSAGES = 500;
+
 // AI SDK v6 changed tool() overloads significantly. We define tools as plain
 // objects matching the Tool type to avoid overload resolution issues.
 function defineTool(def: {
@@ -345,6 +348,18 @@ export class EmailAgent extends AIChatAgent<any> {
 		return {};
 	}
 
+	/**
+	 * Trim message history to MAX_AGENT_MESSAGES by removing the oldest messages.
+	 * Prevents unbounded DO storage growth from message flooding.
+	 */
+	private async persistMessagesTrimmed(newMessages: any[]) {
+		if (newMessages.length > MAX_AGENT_MESSAGES) {
+			// If the new batch alone exceeds the limit, take only the most recent.
+			newMessages = newMessages.slice(-MAX_AGENT_MESSAGES);
+		}
+		await this.persistMessages(newMessages);
+	}
+
 	async onChatMessage(onFinish: any) {
 		const env = this.env as Env;
 		const mailboxId = this.name;
@@ -352,10 +367,35 @@ export class EmailAgent extends AIChatAgent<any> {
 		const tools = createEmailTools(env, mailboxId);
 		const systemPrompt = await getSystemPrompt(env, mailboxId);
 
+		// Scan the latest user message for prompt injection before passing to the LLM.
+		// Unlike the email ingestion path (handleNewEmail), the chat path previously
+		// lacked injection scanning, allowing a malicious email forwarded into chat
+		// to manipulate agent behavior.
+		const modelMessages = await convertToModelMessages(this.messages);
+		const lastUserMessage = [...modelMessages].reverse().find(
+			(m) => m.role === "user" && typeof m.content === "string",
+		);
+		if (lastUserMessage && typeof lastUserMessage.content === "string") {
+			const isInjection = await isPromptInjection(env.AI, lastUserMessage.content);
+			if (isInjection) {
+				console.warn("Prompt injection detected in chat message, blocking response");
+				return new Response(
+					JSON.stringify({
+						role: "assistant",
+						content: "⚠️ I can't process that message — it appears to contain prompt injection or instructions that could compromise my behavior.",
+					}),
+					{
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					},
+				);
+			}
+		}
+
 		const result = streamText({
 			model: workersai("@cf/moonshotai/kimi-k2.5"),
 			system: systemPrompt,
-			messages: await convertToModelMessages(this.messages),
+			messages: modelMessages,
 			tools,
 			stopWhen: stepCountIs(5),
 			onFinish,
@@ -464,14 +504,18 @@ export class EmailAgent extends AIChatAgent<any> {
 							parts: [{ type: "text" as const, text: "⚠️ Blocked auto-draft creation: the email appears to contain prompt injection or malicious instructions." }],
 						},
 					];
-					await this.persistMessages([...this.messages, ...newMessages]);
+					await this.persistMessagesTrimmed([...this.messages, ...newMessages]);
 					
 					return;
 				}
 				
 				emailBody = stripHtmlToText(email.body);
 
-				// -- Auto-Categorization --
+				// -- Auto-Categorization + Auto-Actions --
+				// Classifies emails and optionally performs automatic actions based
+				// on the category. Users can configure auto-actions per mailbox:
+				//   config.autoArchiveCategories: string[] — categories to auto-archive (soft — moves to archive folder)
+				//   config.autoMarkReadCategories: string[] — categories to auto-mark as read
 				try {
 					const catPrompt = config.promptCategorization || `Classify this email into one of these categories: Invoices, Travel, Newsletters, Action Required, or Other.
 Only respond with the category name. No other text.
@@ -486,8 +530,18 @@ Body Snippet: ${emailBody.substring(0, 500)}`;
 
 					const category = classificationResult.text.trim().replace(/[.,!]/g, "");
 					const validCategories = ["Invoices", "Travel", "Newsletters", "Action Required"];
+					const autoArchiveCategories: string[] = config.autoArchiveCategories || ["Newsletters"];
+					const autoMarkReadCategories: string[] = config.autoMarkReadCategories || [];
 					
 					if (validCategories.includes(category)) {
+						// Store category and priority in DB for Smart Inbox
+						await (stub as any).updateEmailDecision(emailData.emailId, {
+							category,
+							review_status: "done" as any,
+							analyzed_at: new Date().toISOString(),
+							confidence: 80,
+						});
+
 						const folderId = category.toLowerCase().replace(/\s+/g, "-");
 						const folders = await (stub as any).getFolders();
 						if (!folders.find((f: any) => f.id === folderId)) {
@@ -495,6 +549,19 @@ Body Snippet: ${emailBody.substring(0, 500)}`;
 						}
 						await (stub as any).moveEmail(emailData.emailId, folderId);
 						console.log(`Auto-categorized email ${emailData.emailId} as ${category}`);
+
+						// Auto-archive: move to archive folder if category is configured for auto-archive
+						if (autoArchiveCategories.includes(category)) {
+							await (stub as any).moveEmail(emailData.emailId, "archive");
+							console.log(`Auto-archived email ${emailData.emailId} (category: ${category})`);
+							return; // Skip auto-draft for archived emails
+						}
+
+						// Auto-mark-read: mark as read if category is configured
+						if (autoMarkReadCategories.includes(category)) {
+							await (stub as any).markEmailRead(emailData.emailId);
+							console.log(`Auto-marked-read email ${emailData.emailId} (category: ${category})`);
+						}
 					}
 				} catch (catErr) {
 					console.error("Auto-categorization failed:", (catErr as Error).message);
@@ -539,7 +606,7 @@ Body Snippet: ${emailBody.substring(0, 500)}`;
 							parts: [{ type: "text" as const, text: "Blocked auto-draft creation: the thread context appears to contain prompt injection or malicious instructions." }],
 						},
 					];
-					await this.persistMessages([...this.messages, ...newMessages]);
+					await this.persistMessagesTrimmed([...this.messages, ...newMessages]);
 					return;
 				}
 			}
@@ -664,7 +731,7 @@ ${emailBody || "(could not pre-read — use get_email to read it)"}`;
 				},
 			];
 
-			await this.persistMessages([...this.messages, ...newMessages]);
+			await this.persistMessagesTrimmed([...this.messages, ...newMessages]);
 
 			// Trigger a real-time UI refresh
 			await this.broadcastUpdate({ type: "new_email", emailId: emailData.emailId, threadId: emailData.threadId });
