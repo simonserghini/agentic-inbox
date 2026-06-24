@@ -17,7 +17,7 @@ import {
 import { useDeleteEmail, useForwardEmail, useReplyToEmail, useSaveDraft, useSendEmail } from "~/queries/emails";
 import { useMailbox } from "~/queries/mailboxes";
 import { useUIStore } from "~/hooks/useUIStore";
-import api from "~/services/api";
+
 
 function appendUniqueAddress(
 	addresses: string[],
@@ -307,7 +307,7 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 		if (mailboxId && threadId) {
 			// Move the thread to archive
 			try {
-				await api.post(`/api/v1/mailboxes/${mailboxId}/threads/${threadId}/read`, {});
+				await fetch(`/api/v1/mailboxes/${mailboxId}/threads/${threadId}/read`, { method: "POST" });
 			} catch { /* best effort */ }
 		}
 	};

@@ -180,8 +180,13 @@ app.get("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 
 	// Cursor-based pagination for infinite scroll
 	if (cursor !== undefined && cursor !== null) {
-		const result = await (stub as any).getEmailsCursor({ folder, thread_id, cursor: cursor || undefined, limit });
-		return c.json(result);
+		try {
+			const result = await (stub as any).getEmailsCursor({ folder, thread_id, cursor: cursor || undefined, limit });
+			return c.json(result);
+		} catch (e) {
+			console.error("Failed cursor-based email fetch:", (e as Error).message);
+			return c.json({ emails: [], hasMore: false, nextCursor: null, error: (e as Error).message }, 500);
+		}
 	}
 
 	if (threaded && folder) {
@@ -313,13 +318,18 @@ app.post("/api/v1/mailboxes/:mailboxId/emails/:id/unsnooze", async (c: AppContex
 // -- Threads --------------------------------------------------------
 
 app.get("/api/v1/mailboxes/:mailboxId/threads", async (c: AppContext) => {
-	const folder = c.req.query("folder");
-	const page = intQuery(c, "page");
-	const limit = intQuery(c, "limit");
-	const stub = c.var.mailboxStub as any;
-	const threads = await stub.getThreads({ folder, page, limit });
-	const totalCount = await stub.countThreads({ folder });
-	return c.json({ threads, totalCount });
+	try {
+		const folder = c.req.query("folder");
+		const page = intQuery(c, "page");
+		const limit = intQuery(c, "limit");
+		const stub = c.var.mailboxStub as any;
+		const threads = await stub.getThreads({ folder, page, limit });
+		const totalCount = await stub.countThreads({ folder });
+		return c.json({ threads, totalCount });
+	} catch (e) {
+		console.error("Failed to load threads:", (e as Error).message);
+		return c.json({ threads: [], totalCount: 0, error: (e as Error).message }, 500);
+	}
 });
 
 app.get("/api/v1/mailboxes/:mailboxId/threads/:threadId", async (c: AppContext) => {
@@ -373,8 +383,13 @@ app.post("/api/v1/mailboxes/:mailboxId/empty-trash", async (c: AppContext) => {
 });
 
 app.get("/api/v1/mailboxes/:mailboxId/smart-inbox", async (c: AppContext) => {
-	const result = await (c.var.mailboxStub as any).getSmartInbox();
-	return c.json(result);
+	try {
+		const result = await (c.var.mailboxStub as any).getSmartInbox();
+		return c.json(result);
+	} catch (e) {
+		console.error("Failed to load smart inbox:", (e as Error).message);
+		return c.json({ groups: {}, total: 0, error: (e as Error).message }, 500);
+	}
 });
 
 // -- Triage & Review ------------------------------------------------
