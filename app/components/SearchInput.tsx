@@ -163,8 +163,6 @@ export default function SearchInput({ className }: SearchInputProps) {
 		if (!value) return null;
 		const parts: React.ReactNode[] = [];
 		const regex = /\b(from|to|subject|in|is|has|before|after):(?:"[^"]*?"|\S*)/gi;
-		let lastIndex = 0;
-		let match: RegExpExecArray | null;
 
 		// Reset regex state
 		regex.lastIndex = 0;

@@ -6,32 +6,21 @@ import { Badge, Button, Tooltip } from "@cloudflare/kumo";
 import {
 	ArchiveIcon,
 	ArrowBendUpLeftIcon,
-	ClockIcon,
-	EnvelopeOpenIcon,
-	EnvelopeSimpleIcon,
 	FileIcon,
-	PaperPlaneTiltIcon,
-	PencilSimpleIcon,
 	StarIcon,
 	TrashIcon,
-	TrayIcon,
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
 import { useParams } from "react-router";
-import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
 import { getSnippetText } from "~/lib/utils";
 import {
 	useDeleteEmail,
 	useMoveEmail,
-	useSnoozeEmail,
-	useUnsnoozeEmail,
 	useUpdateEmail,
 } from "~/queries/emails";
 import type { ThreadSummary } from "~/queries/emails";
 import { queryKeys } from "~/queries/keys";
-import { useUIStore } from "~/hooks/useUIStore";
 
 interface ThreadRowProps {
 	thread: ThreadSummary;
@@ -46,8 +35,6 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	const { mailboxId } = useParams<{ mailboxId: string }>();
 	const updateEmail = useUpdateEmail();
 	const moveEmail = useMoveEmail();
-	const snoozeEmail = useSnoozeEmail();
-	const unsnoozeEmail = useUnsnoozeEmail();
 	const deleteEmail = useDeleteEmail();
 	const qc = useQueryClient();
 
