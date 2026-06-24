@@ -3,7 +3,7 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { Banner, Button, Dialog, Input, Text, Tooltip } from "@cloudflare/kumo";
-import { ArchiveIcon, CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
+import { ArchiveIcon, CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";

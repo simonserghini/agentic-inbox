@@ -9,6 +9,8 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noEmit": true,
     "types": [
         "./worker-configuration.d.ts"

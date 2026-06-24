@@ -2,12 +2,12 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Button, Input, Tooltip } from "@cloudflare/kumo";
-import { BellIcon, BellRingingIcon, BellSlashIcon, GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon, XIcon } from "@phosphor-icons/react";
+import { Button, Tooltip } from "@cloudflare/kumo";
+import { BellIcon, BellRingingIcon, BellSlashIcon, GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon } from "@phosphor-icons/react";
 import ThemeToggle from "~/components/ThemeToggle";
 import SearchInput from "~/components/SearchInput";
-import { type KeyboardEvent, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useUIStore } from "~/hooks/useUIStore";
 import { useNotifications } from "~/hooks/useNotifications";
 

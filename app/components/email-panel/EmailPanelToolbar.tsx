@@ -48,7 +48,6 @@ interface EmailPanelToolbarProps {
 
 export default function EmailPanelToolbar({
 	email,
-	mailboxId,
 	isDraftFolder,
 	isSending,
 	moveToFolders,
@@ -229,7 +228,6 @@ function SnoozeButton({ onSnooze, onUnsnooze, emailFolder }: { onSnooze?: (until
 	}, [open]);
 
 	const isSnoozed = emailFolder === "snoozed";
-	const now = new Date();
 
 	if (!onSnooze) return null;
 

@@ -47,7 +47,7 @@ app.use("*", async (c, next) => {
 	// Skip validation in development or when explicitly configured via ENVIRONMENT env var.
 	// Using a runtime env var avoids the risk of a non-production build
 	// (e.g. preview deploy with MODE=development) accidentally disabling auth.
-	const isDev = import.meta.env.DEV || c.env.ENVIRONMENT === "development";
+	const isDev = import.meta.env.DEV || (c.env as any).ENVIRONMENT === "development";
 	if (isDev) {
 		return next();
 	}

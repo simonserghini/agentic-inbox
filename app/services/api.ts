@@ -66,8 +66,7 @@ function get<T>(url: string, opts?: { params?: Record<string, string>; responseT
   });
 }
 
-// Expose raw get for one-off queries (Smart Inbox, etc.)
-(api as any).get = get;
+
 
 function post<T>(url: string, body?: unknown, opts?: { signal?: AbortSignal }) {
 	return request<T>(url, {

@@ -48,7 +48,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 		e.stopPropagation();
 		// Star the latest email in the thread — we track the thread representative
 		updateEmail.mutate(
-			{ mailboxId: mailboxId!, emailId: thread.thread_id, changes: { starred: !thread.starred } },
+			{ mailboxId: mailboxId!, id: thread.thread_id, data: { starred: !thread.starred } },
 			{ onSuccess: () => invalidate() },
 		);
 	};
@@ -56,7 +56,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	const handleArchive = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		moveEmail.mutate(
-			{ mailboxId: mailboxId!, emailId: thread.thread_id, folderId: Folders.ARCHIVE },
+			{ mailboxId: mailboxId!, id: thread.thread_id, folderId: "archive" },
 			{ onSuccess: () => invalidate() },
 		);
 	};
@@ -64,7 +64,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	const handleDelete = (e: React.MouseEvent) => {
 		e.stopPropagation();
 		deleteEmail.mutate(
-			{ mailboxId: mailboxId!, emailId: thread.thread_id },
+			{ mailboxId: mailboxId!, id: thread.thread_id },
 			{ onSuccess: () => invalidate() },
 		);
 	};
@@ -136,9 +136,9 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 						<div className="shrink-0 w-2 h-2 rounded-full bg-kumo-brand" />
 					)}
 					{thread.draft_count > 0 && (
-						<Badge variant="warning" size="sm">
-							Draft
-						</Badge>
+				<Badge variant="warning">
+					Draft
+				</Badge>
 					)}
 					{thread.has_attachment && (
 						<FileIcon size={12} className="text-kumo-subtle shrink-0" weight="fill" />
@@ -158,9 +158,9 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 					{formatListDate(thread.last_date)}
 				</span>
 				{thread.message_count > 1 && (
-					<Badge variant="secondary" size="sm">
-						{thread.message_count}
-					</Badge>
+			<Badge variant="secondary">
+				{thread.message_count}
+			</Badge>
 				)}
 			</div>
 

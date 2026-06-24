@@ -20,7 +20,6 @@ import { createPortal } from "react-dom";
 import { useParams } from "react-router";
 import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
-import api from "~/services/api";
 import MailboxSplitView from "~/components/MailboxSplitView";
 import ThreadList from "~/components/ThreadList";
 import { getSnippetText } from "~/lib/utils";
@@ -224,13 +223,6 @@ function HoverPreviewCard({ email, style }: HoverPreviewProps) {
 	);
 }
 
-interface UndoToast {
-	id: string;
-	emailId: string;
-	message: string;
-	timeout: ReturnType<typeof setTimeout>;
-}
-
 interface ToastState {
 	message: string;
 	type: "undo" | "info";
@@ -307,7 +299,7 @@ export default function EmailListRoute() {
 
 	const { data: smartData } = useQuery<any>({
 		queryKey: ["smart-inbox", mailboxId],
-		queryFn: () => api.get<any>(`/api/v1/mailboxes/${mailboxId}/smart-inbox`),
+		queryFn: () => fetch(`/api/v1/mailboxes/${mailboxId}/smart-inbox`).then(r => r.json()),
 		enabled: !!mailboxId && smartMode,
 		refetchInterval: 30_000,
 	});
@@ -527,10 +519,6 @@ export default function EmailListRoute() {
 		}
 	};
 
-	const handleRowEnter = (email: Email) => {
-		selectEmail(email.id);
-	};
-
 	const formatParticipants = (email: Email): string => {
 		if (email.participants) {
 			const names = email.participants
@@ -676,7 +664,7 @@ export default function EmailListRoute() {
 
 	const handleBatchMove = (folderId: string) => {
 		if (!mailboxId || selectedIds.size === 0) return;
-		api.batchMoveEmails(mailboxId, [...selectedIds], folderId).then(() => {
+		fetch(`/api/v1/mailboxes/${mailboxId}/batch/move`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds], folderId }) }).then(() => {
 			clearSelection();
 			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
 			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
@@ -685,7 +673,7 @@ export default function EmailListRoute() {
 
 	const handleBatchDelete = () => {
 		if (!mailboxId || selectedIds.size === 0) return;
-		api.batchDeleteEmails(mailboxId, [...selectedIds]).then(() => {
+		fetch(`/api/v1/mailboxes/${mailboxId}/batch/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds] }) }).then(() => {
 			clearSelection();
 			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
 			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
@@ -694,7 +682,7 @@ export default function EmailListRoute() {
 
 	const handleBatchRead = (read: boolean) => {
 		if (!mailboxId || selectedIds.size === 0) return;
-		api.batchMarkRead(mailboxId, [...selectedIds], read).then(() => {
+		fetch(`/api/v1/mailboxes/${mailboxId}/batch/read`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...selectedIds], read }) }).then(() => {
 			clearSelection();
 			qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
 			qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
@@ -811,7 +799,7 @@ export default function EmailListRoute() {
 								icon={<EnvelopeOpenIcon size={16} />}
 								onClick={() => {
 									if (!mailboxId) return;
-									api.post(`/api/v1/mailboxes/${mailboxId}/mark-all-read?folder=${folder || "inbox"}`, {}).then(() => {
+									fetch(`/api/v1/mailboxes/${mailboxId}/mark-all-read?folder=${folder || "inbox"}`, { method: "POST" }).then(() => {
 										handleRefresh();
 									});
 								}}
@@ -828,7 +816,7 @@ export default function EmailListRoute() {
 								icon={<TrashIcon size={16} />}
 								onClick={() => {
 									if (!mailboxId) return;
-									api.post(`/api/v1/mailboxes/${mailboxId}/empty-trash`, {}).then(() => {
+									fetch(`/api/v1/mailboxes/${mailboxId}/empty-trash`, { method: "POST" }).then(() => {
 										handleRefresh();
 										addToast("Trash emptied");
 									});
@@ -931,8 +919,9 @@ export default function EmailListRoute() {
 								<div className="px-4 py-3 border-t border-kumo-line flex justify-center">
 									<Pagination
 										page={page}
-										totalPages={Math.ceil(threadTotalCount / PAGE_SIZE)}
-										onPageChange={setPage}
+										perPage={PAGE_SIZE}
+										totalCount={threadTotalCount}
+										setPage={setPage}
 									/>
 								</div>
 							)}

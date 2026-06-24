@@ -185,7 +185,6 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const [scheduledFor, setScheduledFor] = useState<string | null>(null);
 	const [lastSentId, setLastSentId] = useState<string | null>(null);
 	const [undoTimer, setUndoTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-	const [undoCountdown, setUndoCountdown] = useState(0);
 	const [attachments, setAttachments] = useState<{ name: string; size: number; type: string; dataUrl: string }[]>([]);
 	const lastInitializedOptionsRef = useRef<typeof composeOptions | null>(null);
 	const isDraftEdit = !!composeOptions.draftEmail;
@@ -302,7 +301,6 @@ export function useComposeForm(mailboxId?: string, _folder?: string) {
 	const handleSendAndArchive = async (e: FormEvent, onClose: () => void) => {
 		await handleSend(e, onClose);
 		// Archive the original email thread if replying
-		const originalId = composeOptions.originalEmail?.id;
 		const threadId = composeOptions.originalEmail?.thread_id || composeOptions.draftEmail?.thread_id;
 		if (mailboxId && threadId) {
 			// Move the thread to archive

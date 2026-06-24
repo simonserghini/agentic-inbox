@@ -167,10 +167,11 @@ export default function SearchInput({ className }: SearchInputProps) {
 		// Reset regex state
 		regex.lastIndex = 0;
 		const tokens: { start: number; end: number; color: string }[] = [];
+		let m: RegExpExecArray | null;
 
-		while ((match = regex.exec(value)) !== null) {
-			const op = match[1].toLowerCase();
-			tokens.push({ start: match.index, end: regex.lastIndex, color: SYNTAX_COLORS[op] || "text-kumo-brand" });
+		while ((m = regex.exec(value)) !== null) {
+			const op = m[1].toLowerCase();
+			tokens.push({ start: m.index, end: regex.lastIndex, color: SYNTAX_COLORS[op] || "text-kumo-brand" });
 		}
 
 		if (tokens.length === 0) return null;

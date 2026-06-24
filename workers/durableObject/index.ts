@@ -655,7 +655,7 @@ async getReviewQueue(options: { page?: number; limit?: number } = {}) {
 	async markEmailRead(id: string) {
 		this.db
 			.update(schema.emails)
-			.set({ read: true })
+			.set({ read: sql`1` })
 			.where(eq(schema.emails.id, id))
 			.run();
 	}

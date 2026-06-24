@@ -23,9 +23,6 @@ import {
 import { Folders, FOLDER_TOOL_DESCRIPTION, MOVE_FOLDER_TOOL_DESCRIPTION } from "../../shared/folders";
 import type { Env } from "../types";
 
-/** Maximum number of messages to retain in agent storage before trimming oldest. */
-const MAX_AGENT_MESSAGES = 500;
-
 /** Wrap a plain result object into MCP content format. */
 function mcpText(result: unknown) {
 	return {
@@ -443,6 +440,5 @@ export class EmailMCP extends McpAgent<Env> {
 			},
 		);
 
-		this.onready?.();
 	}
 }

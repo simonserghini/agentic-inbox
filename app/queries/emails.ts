@@ -429,7 +429,7 @@ export function useInfiniteEmails(
 			const queryParams = pageParam
 				? { ...params, cursor: pageParam as string }
 				: params;
-			return api.listEmails(mailboxId!, queryParams) as Promise<CursorEmailResponse>;
+			return api.listEmails(mailboxId!, queryParams) as unknown as Promise<CursorEmailResponse>;
 		},
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) =>
