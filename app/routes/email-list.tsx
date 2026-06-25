@@ -311,11 +311,6 @@ export default function EmailListRoute() {
 	}, [smartGroups]);
 
 	const {
-		data: emailData,
-		isFetching: isRefreshing,
-	} = useEmails(mailboxId, params, { refetchInterval: 30_000, enabled: (!threaded || threadFailed) && !smartMode });
-
-	const {
 		data: threadData,
 		isFetching: isThreadRefreshing,
 		isError: threadError,
@@ -324,6 +319,11 @@ export default function EmailListRoute() {
 	// If threads fail, silently fall back to flat list
 	const threadFailed = threadError && threaded;
 	const effectiveThreaded = threaded && !threadFailed;
+
+	const {
+		data: emailData,
+		isFetching: isRefreshing,
+	} = useEmails(mailboxId, params, { refetchInterval: 30_000, enabled: (!threaded || threadFailed) && !smartMode });
 
 	// Infinite scroll query — used when NOT in threaded mode and not in pagination mode
 	const {

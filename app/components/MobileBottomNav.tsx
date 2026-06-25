@@ -6,7 +6,6 @@ import { Tooltip } from "@cloudflare/kumo";
 import {
 	EnvelopeSimpleIcon,
 	GearSixIcon,
-	ListIcon,
 	MagnifyingGlassIcon,
 	PencilSimpleIcon,
 	RobotIcon,
