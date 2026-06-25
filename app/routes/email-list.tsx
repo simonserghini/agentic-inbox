@@ -906,9 +906,9 @@ export default function EmailListRoute() {
 					) : (
 						<FolderEmptyState folder={folder} onCompose={() => startCompose()} />
 					)
-				) : isRefreshingAny && (threaded ? threads.length : effectiveEmails.length) === 0 ? (
+				) : isRefreshingAny && ((threaded && !threadFailed) ? threads.length : effectiveEmails.length) === 0 ? (
 					<EmailListSkeleton />
-				) : threaded ? (
+				) : (threaded && !threadFailed) ? (
 					threads.length > 0 ? (
 						<>
 							<ThreadList
