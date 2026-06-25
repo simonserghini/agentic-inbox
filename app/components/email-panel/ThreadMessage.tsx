@@ -19,6 +19,8 @@ import {
 	formatShortDate,
 	rewriteInlineImages,
 	stripHtml,
+	senderDisplayName,
+	parseSender,
 } from "~/lib/utils";
 import type { Email } from "~/types";
 import { useUIStore } from "~/hooks/useUIStore";
@@ -98,7 +100,9 @@ export default function ThreadMessage({
 	const isSelf = email.sender === mailboxEmail;
 	const { setAgentCommand } = useUIStore();
 	const containerClassName = `${!isLast ? "border-b border-kumo-line" : ""} ${isDraft ? "border-l-2 border-l-kumo-warning bg-kumo-warning/[0.02]" : ""}`;
-	const senderLabel = isDraft ? "Draft reply" : isSelf ? "You" : email.sender;
+	const displayName = senderDisplayName(email.sender);
+	const senderEmail = parseSender(email.sender).email;
+	const senderLabel = isDraft ? "Draft reply" : isSelf ? "You" : displayName;
 
 	if (!isExpanded) {
 		return (
@@ -108,17 +112,20 @@ export default function ThreadMessage({
 					onClick={onToggleExpand}
 					className="w-full flex items-center gap-3 px-4 py-3 hover:bg-kumo-tint rounded-lg text-left"
 				>
-					<Avatar isDraft={isDraft} isSelf={isSelf} sender={email.sender} />
+					<Avatar isDraft={isDraft} isSelf={isSelf} sender={displayName} />
 					<div className="flex-1 min-w-0">
 						<div className="flex items-center justify-between">
-							<span className="text-sm font-medium text-kumo-default truncate">
+							<span className="text-sm font-semibold text-kumo-default truncate">
 								{senderLabel}
 							</span>
-							<span className="text-xs text-kumo-subtle shrink-0">
+							{!isSelf && !isDraft && (
+								<span className="text-[11px] text-kumo-subtle truncate ml-2">{senderEmail}</span>
+							)}
+							<span className="text-xs text-kumo-subtle shrink-0 ml-auto">
 								{formatDetailDate(email.date)}
 							</span>
 						</div>
-						<p className="text-xs text-kumo-subtle truncate">
+						<p className="text-xs text-kumo-subtle truncate mt-0.5">
 							{stripHtml(email.body || "").slice(0, 80)}
 						</p>
 					</div>

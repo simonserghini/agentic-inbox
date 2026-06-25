@@ -4,7 +4,7 @@
 
 import EmailAttachmentList from "~/components/EmailAttachmentList";
 import EmailIframe from "~/components/EmailIframe";
-import { formatDetailDate, rewriteInlineImages } from "~/lib/utils";
+import { formatDetailDate, rewriteInlineImages, senderDisplayName, parseSender } from "~/lib/utils";
 import type { Email } from "~/types";
 
 interface SingleMessageViewProps {
@@ -18,22 +18,26 @@ export default function SingleMessageView({
 	mailboxId,
 	onPreviewImage,
 }: SingleMessageViewProps) {
+	const sender = parseSender(email.sender);
+	const name = senderDisplayName(email.sender);
+
 	return (
 		<div className="flex flex-col h-full">
-			<div className="px-4 py-4 border-b border-kumo-line md:px-6">
-				<div className="flex items-center justify-between gap-3">
-					<div className="flex items-center gap-2.5 min-w-0">
-						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-kumo-fill text-xs font-bold text-kumo-default">
-							{email.sender.charAt(0).toUpperCase()}
+			<div className="px-4 py-4 border-b border-kumo-line md:px-6 bg-kumo-recessed/30">
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex items-start gap-3 min-w-0">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kumo-brand/10 text-sm font-bold text-kumo-brand">
+							{name.charAt(0).toUpperCase()}
 						</div>
 						<div className="min-w-0">
-							<div className="text-sm font-medium text-kumo-default truncate">
-								{email.sender}
+							<div className="text-base font-bold text-kumo-default truncate">
+								{name}
 							</div>
-							<div className="text-xs text-kumo-subtle">To: {email.recipient}</div>
+							<div className="text-xs text-kumo-subtle mt-0.5">{sender.email}</div>
+							<div className="text-xs text-kumo-subtle mt-0.5">To: {email.recipient?.includes("<") ? email.recipient.match(/<([^>]+)>/)?.[1] || email.recipient : email.recipient}</div>
 						</div>
 					</div>
-					<span className="text-xs text-kumo-subtle shrink-0">
+					<span className="text-xs text-kumo-subtle shrink-0 whitespace-nowrap mt-1">
 						{formatDetailDate(email.date)}
 					</span>
 				</div>
