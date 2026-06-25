@@ -185,7 +185,7 @@ app.get("/api/v1/mailboxes/:mailboxId/emails", async (c: AppContext) => {
 			return c.json(result);
 		} catch (e) {
 			console.error("Failed cursor-based email fetch:", (e as Error).message);
-			return c.json({ emails: [], hasMore: false, nextCursor: null, error: (e as Error).message }, 500);
+			return c.json({ emails: [], hasMore: false, nextCursor: null, error: (e as Error).message });
 		}
 	}
 
@@ -328,7 +328,7 @@ app.get("/api/v1/mailboxes/:mailboxId/threads", async (c: AppContext) => {
 		return c.json({ threads, totalCount });
 	} catch (e) {
 		console.error("Failed to load threads:", (e as Error).message);
-		return c.json({ threads: [], totalCount: 0, error: (e as Error).message }, 500);
+		return c.json({ threads: [], totalCount: 0, error: (e as Error).message });
 	}
 });
 
@@ -388,7 +388,7 @@ app.get("/api/v1/mailboxes/:mailboxId/smart-inbox", async (c: AppContext) => {
 		return c.json(result);
 	} catch (e) {
 		console.error("Failed to load smart inbox:", (e as Error).message);
-		return c.json({ groups: {}, total: 0, error: (e as Error).message }, 500);
+		return c.json({ groups: {}, total: 0, error: (e as Error).message });
 	}
 });
 

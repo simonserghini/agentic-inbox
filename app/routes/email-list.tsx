@@ -313,12 +313,16 @@ export default function EmailListRoute() {
 	const {
 		data: emailData,
 		isFetching: isRefreshing,
-	} = useEmails(mailboxId, params, { refetchInterval: 30_000, enabled: !threaded && !smartMode });
+	} = useEmails(mailboxId, params, { refetchInterval: 30_000, enabled: (!threaded || threadFailed) && !smartMode });
 
 	const {
 		data: threadData,
 		isFetching: isThreadRefreshing,
+		isError: threadError,
 	} = useThreads(mailboxId, params, { enabled: threaded });
+
+	// If threads fail, silently fall back to flat list
+	const threadFailed = threadError && threaded;
 
 	// Infinite scroll query — used when NOT in threaded mode and not in pagination mode
 	const {
