@@ -153,11 +153,11 @@ function SparkleParticles() {
 	const particles = useMemo(() => {
 		return Array.from({ length: 12 }).map((_, i) => ({
 			id: i,
-			left: `${10 + Math.random() * 80}%`,
-			top: `${10 + Math.random() * 80}%`,
-			delay: `${Math.random() * 0.5}s`,
-			size: 4 + Math.random() * 8,
-			rotation: Math.random() * 360,
+			left: `${10 + ((i * 7 + 3) % 80)}%`,
+			top: `${10 + ((i * 13 + 5) % 80)}%`,
+			delay: `${(i * 0.04).toFixed(2)}s`,
+			size: 4 + (i % 8),
+			rotation: i * 30,
 		}));
 	}, []);
 
