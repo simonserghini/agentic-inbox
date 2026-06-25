@@ -296,6 +296,50 @@ export default function EmailListRoute() {
 	const { notify } = useNotifications();
 
 	const [smartMode, setSmartMode] = useState(false);
+	const [pullRefreshing, setPullRefreshing] = useState(false);
+	const pullStartRef = useRef(0);
+	const pullMoveRef = useRef(0);
+	const pullElRef = useRef<HTMLDivElement>(null);
+
+	// Pull-to-refresh handler
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		const onTouchStart = (e: TouchEvent) => {
+			if (el.scrollTop <= 0) pullStartRef.current = e.touches[0].clientY;
+		};
+		const onTouchMove = (e: TouchEvent) => {
+			if (pullStartRef.current === 0) return;
+			const dy = e.touches[0].clientY - pullStartRef.current;
+			if (dy > 0 && el.scrollTop <= 0) {
+				pullMoveRef.current = Math.min(dy, 120);
+				if (pullElRef.current) pullElRef.current.style.height = `${pullMoveRef.current}px`;
+				e.preventDefault();
+			}
+		};
+		const onTouchEnd = async () => {
+			if (pullMoveRef.current > 60) {
+				setPullRefreshing(true);
+				handleRefresh();
+				setTimeout(() => {
+					setPullRefreshing(false);
+					if (pullElRef.current) pullElRef.current.style.height = "0px";
+				}, 800);
+			} else {
+				if (pullElRef.current) pullElRef.current.style.height = "0px";
+			}
+			pullStartRef.current = 0;
+			pullMoveRef.current = 0;
+		};
+		el.addEventListener("touchstart", onTouchStart, { passive: true });
+		el.addEventListener("touchmove", onTouchMove, { passive: false });
+		el.addEventListener("touchend", onTouchEnd);
+		return () => {
+			el.removeEventListener("touchstart", onTouchStart);
+			el.removeEventListener("touchmove", onTouchMove);
+			el.removeEventListener("touchend", onTouchEnd);
+		};
+	}, [handleRefresh]);
 
 	const { data: smartData } = useQuery<any>({
 		queryKey: ["smart-inbox", mailboxId],
@@ -855,6 +899,15 @@ export default function EmailListRoute() {
 			</div>
 
 			<div className="flex-1 overflow-y-auto" ref={scrollRef}>
+				{/* Pull-to-refresh indicator */}
+				<div
+					ref={pullElRef}
+					className="h-0 overflow-hidden transition-[height] duration-200 flex items-center justify-center bg-kumo-tint/50"
+				>
+					{pullRefreshing && (
+						<Loader size="base" />
+					)}
+				</div>
 				{smartMode && folder === Folders.INBOX ? (
 					smartSections.length > 0 ? (
 						<div className="flex flex-col">

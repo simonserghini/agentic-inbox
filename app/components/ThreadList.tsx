@@ -11,6 +11,7 @@ import {
 	TrashIcon,
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useParams } from "react-router";
 import { formatListDate } from "shared/dates";
 import { getSnippetText } from "~/lib/utils";
@@ -37,6 +38,28 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	const moveEmail = useMoveEmail();
 	const deleteEmail = useDeleteEmail();
 	const qc = useQueryClient();
+	const rowRef = useRef<HTMLDivElement>(null);
+	const touchStartRef = useRef(0);
+
+	const onTouchStartSwipe = (e: React.TouchEvent) => {
+		touchStartRef.current = e.touches[0].clientX;
+		if (rowRef.current) rowRef.current.style.transition = "none";
+	};
+	const onTouchMoveSwipe = (e: React.TouchEvent) => {
+		if (!touchStartRef.current) return;
+		const dx = e.touches[0].clientX - touchStartRef.current;
+		if (rowRef.current) rowRef.current.style.transform = `translateX(${Math.max(dx, -120)}px)`;
+	};
+	const onTouchEndSwipe = () => {
+		const dx = rowRef.current ? parseFloat(rowRef.current.style.transform.replace("translateX(", "")) || 0 : 0;
+		if (dx < -60) handleArchive({ stopPropagation: () => {} } as any);
+		else if (dx > 60) handleDelete({ stopPropagation: () => {} } as any);
+		if (rowRef.current) {
+			rowRef.current.style.transition = "transform 0.2s ease";
+			rowRef.current.style.transform = "translateX(0)";
+		}
+		touchStartRef.current = 0;
+	};
 
 	const invalidate = () => {
 		if (!mailboxId) return;
@@ -73,6 +96,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 
 	return (
 		<div
+			ref={rowRef}
 			className={`group flex items-start gap-3 px-3 py-3 cursor-pointer transition-colors border-b border-kumo-line/50 ${
 				selected
 					? "bg-kumo-brand/5 border-l-2 border-l-kumo-brand"
@@ -82,6 +106,9 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 			role="button"
 			tabIndex={0}
 			onKeyDown={(e) => e.key === "Enter" && onSelectThread(thread.thread_id)}
+			onTouchStart={onTouchStartSwipe}
+			onTouchMove={onTouchMoveSwipe}
+			onTouchEnd={onTouchEndSwipe}
 		>
 			{/* Checkbox for batch selection */}
 			{toggleSelect && selectedIds && (
