@@ -14,6 +14,7 @@ import {
 	EnvelopeOpenIcon,
 	EnvelopeSimpleIcon,
 	FolderSimpleIcon,
+	GlobeIcon,
 	MagicWandIcon,
 	PaperPlaneTiltIcon,
 	PencilSimpleIcon,
@@ -42,6 +43,7 @@ interface EmailPanelToolbarProps {
 	onViewSource: () => void;
 	onDelete: () => void;
 	onSummarize: () => void;
+	onTranslate?: () => void;
 	onSnooze?: (until: string) => void;
 	onUnsnooze?: () => void;
 }
@@ -63,6 +65,7 @@ export default function EmailPanelToolbar({
 	onViewSource,
 	onDelete,
 	onSummarize,
+	onTranslate,
 	onSnooze,
 	onUnsnooze,
 }: EmailPanelToolbarProps) {
@@ -130,17 +133,18 @@ export default function EmailPanelToolbar({
 							aria-label="Forward"
 						/>
 					</Tooltip>
-					<Tooltip content="Summarize Thread" side="bottom" asChild>
-						<Button
-							variant="ghost"
-							shape="square"
-							size="sm"
-							icon={<MagicWandIcon size={18} />}
-							onClick={onSummarize}
-							aria-label="Summarize"
-							className="text-kumo-brand"
-						/>
-					</Tooltip>
+					{onTranslate && (
+						<Tooltip content="Translate" side="bottom" asChild>
+							<Button
+								variant="ghost"
+								shape="square"
+								size="sm"
+								icon={<GlobeIcon size={18} />}
+								onClick={onTranslate}
+								aria-label="Translate"
+							/>
+						</Tooltip>
+					)}
 					<SnoozeButton onSnooze={onSnooze} onUnsnooze={onUnsnooze} emailFolder={email.folder_id} />
 				</>
 			)}

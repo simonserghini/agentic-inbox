@@ -278,6 +278,18 @@ app.get("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 	});
 });
 
+app.post("/api/v1/mailboxes/:mailboxId/emails/:id/translate", async (c: AppContext) => {
+	const id = c.req.param("id")!;
+	const { lang } = await c.req.json() as { lang?: string };
+	const targetLang = lang || "Spanish";
+	try {
+		const result = await (c.var.mailboxStub as any).translateEmail(id, targetLang, c.env.AI);
+		return c.json({ translation: result });
+	} catch (e) {
+		return c.json({ error: (e as Error).message });
+	}
+});
+
 app.put("/api/v1/mailboxes/:mailboxId/emails/:id", async (c: AppContext) => {
 	const { read, starred } = UpdateEmailBodySchema.parse(await c.req.json());
 	const email = await c.var.mailboxStub.updateEmail(c.req.param("id")!, { read, starred });

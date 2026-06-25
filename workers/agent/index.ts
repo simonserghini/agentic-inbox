@@ -464,6 +464,12 @@ export class EmailAgent extends AIChatAgent<any> {
 		
 		// Fetch comprehensive mailbox config
 		const config = await this.getMailboxConfig(env, emailData.mailboxId);
+
+		// If auto-draft is disabled, skip the entire pipeline
+		if (config.autoDraftEnabled === false) {
+			console.log("Auto-draft disabled for mailbox, skipping:", emailData.subject);
+			return;
+		}
 		
 		// Build System Prompt
 		let finalPrompt = config.agentSystemPrompt || DEFAULT_SYSTEM_PROMPT;

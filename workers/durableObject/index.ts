@@ -1201,6 +1201,30 @@ async getReviewQueue(options: { page?: number; limit?: number } = {}) {
 		return { marked: row?.cnt ?? 0 };
 	}
 
+	async translateEmail(id: string, targetLang: string, aiBinding: Ai) {
+		const email = this.db
+			.select({ body: schema.emails.body, subject: schema.emails.subject })
+			.from(schema.emails)
+			.where(eq(schema.emails.id, id))
+			.get();
+
+		if (!email?.body) return null;
+
+		const plainText = email.body.replace(/<[^>]*>/g, "");
+		const prompt = `Translate the following email to ${targetLang}. Only return the translated text, nothing else.\n\nSubject: ${email.subject}\n\n${plainText.substring(0, 4000)}`;
+
+		try {
+			const result = (await aiBinding.run("@cf/meta/llama-3.1-8b-instruct", {
+				messages: [{ role: "user", content: prompt }],
+				max_tokens: 2000,
+			})) as { response?: string };
+			return result?.response || null;
+		} catch (e) {
+			console.error("Translation failed:", (e as Error).message);
+			return null;
+		}
+	}
+
 	async emptyTrash() {
 		const count = this.ctx.storage.sql.exec(
 			`SELECT COUNT(*) as cnt FROM emails WHERE folder_id = 'trash'`,

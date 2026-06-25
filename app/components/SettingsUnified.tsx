@@ -27,6 +27,7 @@ export default function SettingsUnified() {
 	const [promptCategorization, setPromptCategorization] = useState("");
 	const [promptVision, setPromptVision] = useState("");
 	const [promptAutoDraft, setPromptAutoDraft] = useState("");
+	const [autoDraftEnabled, setAutoDraftEnabled] = useState(true);
 	const [mailboxSettings, setMailboxSettings] = useState<any>(null);
 
 	// Track whether a Resend key is configured on the backend (from the masked response)
@@ -51,8 +52,9 @@ export default function SettingsUnified() {
 					setAgentSignature(data.settings.agentSignature || "");
 					setPromptCategorization(data.settings.promptCategorization || "");
 					setPromptVision(data.settings.promptVision || "");
-					setPromptAutoDraft(data.settings.promptAutoDraft || "");
-				});
+				setPromptAutoDraft(data.settings.promptAutoDraft || "");
+					setAutoDraftEnabled(data.settings.autoDraftEnabled !== false);
+					});
 		}
 	}, [mailboxId]);
 
@@ -68,6 +70,7 @@ export default function SettingsUnified() {
 					promptCategorization,
 					promptVision,
 					promptAutoDraft,
+					autoDraftEnabled,
 				};
 				const res = await fetch(`/api/v1/mailboxes/${mailboxId}`, {
 					method: "PUT",
@@ -433,13 +436,23 @@ export default function SettingsUnified() {
 									className="min-h-[120px] font-mono text-xs"
 								/>
 
-								<InputArea
-									label="Auto-Draft Orchestration"
-									value={promptAutoDraft}
-									onChange={(e) => setPromptAutoDraft(e.target.value)}
-									placeholder="The specialized prompt used when a new email arrives."
-									className="min-h-[120px] font-mono text-xs"
-								/>
+								<div className="flex items-center justify-between p-3 rounded-lg bg-kumo-tint">
+									<div>
+										<span className="text-sm font-medium text-kumo-default">Auto-Draft Replies</span>
+										<p className="text-xs text-kumo-subtle mt-0.5">Let the agent generate replies when new emails arrive</p>
+									</div>
+									<Switch checked={autoDraftEnabled} onChange={(checked: boolean) => setAutoDraftEnabled(checked)} />
+								</div>
+
+								{autoDraftEnabled && (
+									<InputArea
+										label="Auto-Draft Orchestration"
+										value={promptAutoDraft}
+										onChange={(e) => setPromptAutoDraft(e.target.value)}
+										placeholder="The specialized prompt used when a new email arrives."
+										className="min-h-[120px] font-mono text-xs"
+									/>
+								)}
 							</div>
 							
 							<div className="p-4 rounded-2xl border border-kumo-line bg-kumo-recessed/50 flex gap-3">

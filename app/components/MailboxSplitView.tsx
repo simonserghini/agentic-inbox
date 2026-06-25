@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ComposePanel from "~/components/ComposePanel";
 import EmailPanel from "~/components/EmailPanel";
 
-const DEFAULT_WIDTH = 380;
-const MIN_WIDTH = 280;
-const MAX_WIDTH = 600;
+const DEFAULT_HEIGHT = 50; // percentage
+const MIN_HEIGHT = 30;
+const MAX_HEIGHT = 70;
 
 interface MailboxSplitViewProps {
 	selectedEmailId: string | null;
@@ -21,14 +21,14 @@ export default function MailboxSplitView({
 	onNavigate,
 }: MailboxSplitViewProps) {
 	const isPanelOpen = selectedEmailId !== null || isComposing;
-	const [leftWidth, setLeftWidth] = useState(DEFAULT_WIDTH);
+	const [splitPct, setSplitPct] = useState(DEFAULT_HEIGHT);
 	const [isDragging, setIsDragging] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const handleMouseDown = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
 		setIsDragging(true);
-		document.body.style.cursor = "col-resize";
+		document.body.style.cursor = "row-resize";
 		document.body.style.userSelect = "none";
 	}, []);
 
@@ -37,10 +37,9 @@ export default function MailboxSplitView({
 
 		const handleMouseMove = (e: MouseEvent) => {
 			if (!containerRef.current) return;
-			const containerRect = containerRef.current.getBoundingClientRect();
-			let newWidth = e.clientX - containerRect.left;
-			newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
-			setLeftWidth(newWidth);
+			const rect = containerRef.current.getBoundingClientRect();
+			const newPct = ((e.clientY - rect.top) / rect.height) * 100;
+			setSplitPct(Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, newPct)));
 		};
 
 		const handleMouseUp = () => {
@@ -60,35 +59,38 @@ export default function MailboxSplitView({
 	}, [isDragging]);
 
 	const handleDoubleClick = useCallback(() => {
-		setLeftWidth(DEFAULT_WIDTH);
+		setSplitPct(DEFAULT_HEIGHT);
 	}, []);
 
 	return (
-		<div className="flex h-full" ref={containerRef}>
+		<div className="flex flex-col h-full" ref={containerRef}>
+			{/* Email list — top portion */}
 			<div
-				className="flex flex-col min-w-0 shrink-0 overflow-hidden relative transition-[width] duration-200 ease-out"
-				style={{ width: isPanelOpen ? leftWidth : "100%" }}
+				className="flex flex-col min-h-0 overflow-hidden relative"
+				style={{ flex: isPanelOpen ? `0 0 ${splitPct}%` : "1 1 auto" }}
 			>
 				<div className="flex flex-col h-full">
 					{children}
 				</div>
-
-				{isPanelOpen && (
-					<div
-						onMouseDown={handleMouseDown}
-						onDoubleClick={handleDoubleClick}
-						className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize z-20 group hidden md:block -mr-2"
-					>
-						<div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 group-hover:bg-kumo-brand/20 group-active:bg-kumo-brand/30 transition-colors rounded-full" />
-						<div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px group-hover:w-0.5 group-hover:bg-kumo-brand/50 transition-all rounded-full" />
-					</div>
-				)}
 			</div>
 
+			{/* Divider handle */}
+			{isPanelOpen && (
+				<div
+					onMouseDown={handleMouseDown}
+					onDoubleClick={handleDoubleClick}
+					className="h-3 cursor-row-resize z-20 group flex items-center justify-center shrink-0 bg-kumo-base border-t border-b border-kumo-line"
+				>
+					<div className="w-10 h-1 rounded-full bg-kumo-line group-hover:bg-kumo-brand/40 group-active:bg-kumo-brand/60 transition-colors" />
+				</div>
+			)}
+
+			{/* Detail panel — bottom portion, slides up */}
 			{isPanelOpen && (
 				<div
 					key="detail-panel"
-					className="flex-1 flex flex-col min-w-0 overflow-hidden w-full md:w-auto animate-slide-in-right"
+					className="flex flex-col min-h-0 overflow-hidden animate-slide-in-right"
+					style={{ flex: "1 1 auto" }}
 				>
 					{isComposing && !selectedEmailId ? (
 						<ComposePanel />
