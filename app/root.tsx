@@ -25,6 +25,7 @@ import {
 import { ApiError } from "~/services/api";
 import "./index.css";
 import { BrandingProvider } from "~/contexts/BrandingContext";
+import PWAInstallPrompt from "~/components/PWAInstallPrompt";
 
 function makeQueryClient() {
 	return new QueryClient({
@@ -88,7 +89,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 					href="/favicon.ico"
 					sizes="48x48 32x32 16x16"
 				/>
-				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+				<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+				<meta name="theme-color" content="#f6821f" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+				<link rel="manifest" href="/manifest.json" />
 				<title>Agentic Inbox</title>
 				<Meta />
 				<Links />
@@ -97,6 +102,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				{children}
 				<ScrollRestoration />
 				<Scripts />
+				<script
+					dangerouslySetInnerHTML={{
+						__html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}`,
+					}}
+				/>
 			</body>
 		</html>
 	);
@@ -120,11 +130,12 @@ export default function App() {
 				<LinkProvider component={KumoLink}>
 					<TooltipProvider>
 						<Toasty>
-							<Outlet />
-						</Toasty>
-					</TooltipProvider>
-				</LinkProvider>
-			</BrandingProvider>
+					<Outlet />
+					<PWAInstallPrompt />
+					</Toasty>
+				</TooltipProvider>
+			</LinkProvider>
+		</BrandingProvider>
 		</QueryClientProvider>
 	);
 }

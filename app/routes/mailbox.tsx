@@ -7,6 +7,7 @@ import { Outlet, useParams } from "react-router";
 import AgentSidebar from "~/components/AgentSidebar";
 import ComposeEmail from "~/components/ComposeEmail";
 import Header from "~/components/Header";
+import MobileBottomNav from "~/components/MobileBottomNav";
 import Sidebar from "~/components/Sidebar";
 import { useMailbox } from "~/queries/mailboxes";
 import { useUIStore } from "~/hooks/useUIStore";
@@ -64,16 +65,29 @@ export default function MailboxRoute() {
 			{/* Main content */}
 			<div className="flex-1 flex flex-col min-w-0 bg-kumo-base">
 				<Header />
-				<main className="flex-1 overflow-hidden">
+				<main className="flex-1 overflow-hidden pb-14 md:pb-0">
 					<Outlet />
 				</main>
 			</div>
 
-			{/* Agent + MCP sidebar -- togglable on desktop */}
+			<MobileBottomNav />
+
+			{/* Agent + MCP sidebar -- togglable on desktop, bottom sheet on mobile */}
 			{isAgentPanelOpen && (
-				<div className="hidden lg:flex w-[380px] shrink-0 border-l border-kumo-line flex-col bg-kumo-base overflow-hidden">
-					<AgentSidebar />
-				</div>
+				<>
+					{/* Desktop sidebar */}
+					<div className="hidden lg:flex w-[380px] shrink-0 border-l border-kumo-line flex-col bg-kumo-base overflow-hidden">
+						<AgentSidebar />
+					</div>
+					{/* Mobile bottom sheet */}
+					<div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+						<div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={toggleAgentPanel} />
+						<div className="relative bg-kumo-base rounded-t-2xl max-h-[70vh] flex flex-col animate-slide-in-right">
+							<div className="w-10 h-1 rounded-full bg-kumo-line mx-auto mt-2 mb-1" />
+							<AgentSidebar />
+						</div>
+					</div>
+				</>
 			)}
 
 			<ComposeEmail />

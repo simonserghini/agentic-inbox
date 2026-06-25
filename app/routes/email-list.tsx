@@ -323,6 +323,7 @@ export default function EmailListRoute() {
 
 	// If threads fail, silently fall back to flat list
 	const threadFailed = threadError && threaded;
+	const effectiveThreaded = threaded && !threadFailed;
 
 	// Infinite scroll query — used when NOT in threaded mode and not in pagination mode
 	const {
@@ -346,7 +347,7 @@ export default function EmailListRoute() {
 
 	const emails = emailData?.emails ?? [];
 	const totalCount = emailData?.totalCount ?? 0;
-	const displayTotal = threaded ? threadTotalCount : totalCount;
+	const displayTotal = effectiveThreaded ? threadTotalCount : totalCount;
 	const emailIds = useMemo(() => emails.map((e) => e.id), [emails]);
 
 	// IntersectionObserver sentinel for infinite scroll
@@ -632,9 +633,9 @@ export default function EmailListRoute() {
 		setHoverTarget(null);
 	};
 
-	const isRefreshingAny = threaded ? isThreadRefreshing : (isRefreshing || isInfiniteFetching);
+	const isRefreshingAny = effectiveThreaded ? isThreadRefreshing : (isRefreshing || isInfiniteFetching);
 	const effectiveEmails = infiniteEmails.length > 0 ? infiniteEmails : emails;
-	const isShowingEmptyInbox = !isRefreshingAny && (threaded ? threads.length : effectiveEmails.length) === 0 && isInbox;
+	const isShowingEmptyInbox = !isRefreshingAny && (effectiveThreaded ? threads.length : effectiveEmails.length) === 0 && isInbox;
 
 	// Handle thread click: select the thread and load thread emails
 	const handleThreadClick = (threadId: string) => {
@@ -660,7 +661,7 @@ export default function EmailListRoute() {
 	};
 
 	const selectAll = () => {
-		const ids = threaded ? threads.map((t) => t.thread_id) : emails.map((e) => e.id);
+		const ids = effectiveThreaded ? threads.map((t) => t.thread_id) : emails.map((e) => e.id);
 		setSelectedIds(new Set(ids));
 	};
 
@@ -906,9 +907,9 @@ export default function EmailListRoute() {
 					) : (
 						<FolderEmptyState folder={folder} onCompose={() => startCompose()} />
 					)
-				) : isRefreshingAny && ((threaded && !threadFailed) ? threads.length : effectiveEmails.length) === 0 ? (
+				) : isRefreshingAny && (effectiveThreaded ? threads.length : effectiveEmails.length) === 0 ? (
 					<EmailListSkeleton />
-				) : (threaded && !threadFailed) ? (
+				) : effectiveThreaded ? (
 					threads.length > 0 ? (
 						<>
 							<ThreadList

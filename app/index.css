@@ -151,3 +151,8 @@ button:active {
   margin-top: 0.25em;
   margin-bottom: 0.25em;
 }
+
+/* Safe area for mobile devices with notch/home indicator */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
