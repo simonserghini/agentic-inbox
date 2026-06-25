@@ -187,7 +187,7 @@ export default function EmailPanel({ emailId, onNavigate }: { emailId: string; o
 					setIsSending(true);
 					try {
 						const res = await fetch(`/api/v1/mailboxes/${mailboxId}/emails/${email.id}/translate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lang: "Spanish" }) });
-						const data = await res.json();
+						const data = await res.json() as { translation?: string };
 						if (data.translation) {
 							toastManager.add({ title: "Translation ready — check the agent panel" });
 							setAgentCommand(`Show me the translation of email ${email.id}:\n\n${data.translation}`);

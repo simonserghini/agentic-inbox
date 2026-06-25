@@ -301,7 +301,22 @@ export default function EmailListRoute() {
 	const pullMoveRef = useRef(0);
 	const pullElRef = useRef<HTMLDivElement>(null);
 
-	// Pull-to-refresh handler
+	// Pull-to-refresh handler — uses the handleRefresh defined below
+	const doPullRefresh = async () => {
+		if (pullMoveRef.current > 60) {
+			setPullRefreshing(true);
+			handleRefresh();
+			setTimeout(() => {
+				setPullRefreshing(false);
+				if (pullElRef.current) pullElRef.current.style.height = "0px";
+			}, 800);
+		} else {
+			if (pullElRef.current) pullElRef.current.style.height = "0px";
+		}
+		pullStartRef.current = 0;
+		pullMoveRef.current = 0;
+	};
+
 	useEffect(() => {
 		const el = scrollRef.current;
 		if (!el) return;
@@ -317,29 +332,15 @@ export default function EmailListRoute() {
 				e.preventDefault();
 			}
 		};
-		const onTouchEnd = async () => {
-			if (pullMoveRef.current > 60) {
-				setPullRefreshing(true);
-				handleRefresh();
-				setTimeout(() => {
-					setPullRefreshing(false);
-					if (pullElRef.current) pullElRef.current.style.height = "0px";
-				}, 800);
-			} else {
-				if (pullElRef.current) pullElRef.current.style.height = "0px";
-			}
-			pullStartRef.current = 0;
-			pullMoveRef.current = 0;
-		};
 		el.addEventListener("touchstart", onTouchStart, { passive: true });
 		el.addEventListener("touchmove", onTouchMove, { passive: false });
-		el.addEventListener("touchend", onTouchEnd);
+		el.addEventListener("touchend", doPullRefresh);
 		return () => {
 			el.removeEventListener("touchstart", onTouchStart);
 			el.removeEventListener("touchmove", onTouchMove);
-			el.removeEventListener("touchend", onTouchEnd);
+			el.removeEventListener("touchend", doPullRefresh);
 		};
-	}, [handleRefresh]);
+	}, []);
 
 	const { data: smartData } = useQuery<any>({
 		queryKey: ["smart-inbox", mailboxId],

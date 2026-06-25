@@ -1214,7 +1214,7 @@ async getReviewQueue(options: { page?: number; limit?: number } = {}) {
 		const prompt = `Translate the following email to ${targetLang}. Only return the translated text, nothing else.\n\nSubject: ${email.subject}\n\n${plainText.substring(0, 4000)}`;
 
 		try {
-			const result = (await aiBinding.run("@cf/meta/llama-3.1-8b-instruct", {
+			const result = (await (aiBinding as any).run("@cf/meta/llama-3.1-8b-instruct", {
 				messages: [{ role: "user", content: prompt }],
 				max_tokens: 2000,
 			})) as { response?: string };

@@ -441,7 +441,7 @@ export default function SettingsUnified() {
 										<span className="text-sm font-medium text-kumo-default">Auto-Draft Replies</span>
 										<p className="text-xs text-kumo-subtle mt-0.5">Let the agent generate replies when new emails arrive</p>
 									</div>
-									<Switch checked={autoDraftEnabled} onChange={(checked: boolean) => setAutoDraftEnabled(checked)} />
+									<Switch checked={autoDraftEnabled} onChange={() => setAutoDraftEnabled(!autoDraftEnabled)} />
 								</div>
 
 								{autoDraftEnabled && (
