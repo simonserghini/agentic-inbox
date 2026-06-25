@@ -945,9 +945,14 @@ export default function EmailListRoute() {
 													}`}
 												>
 													{!email.read && <div className="w-2 h-2 rounded-full bg-kumo-brand shrink-0" />}
-													<span className={`text-sm truncate flex-1 ${!email.read ? "font-semibold" : ""}`}>
-														{email.sender.split("@")[0]} — {email.subject}
-													</span>
+													<div className="flex-1 min-w-0">
+														<span className={`text-sm truncate block ${!email.read ? "font-semibold" : ""}`}>
+															{email.sender.split("@")[0] || email.sender} — {email.subject}
+														</span>
+														<span className="text-[11px] text-kumo-subtle truncate block">
+															{email.sender.includes("<") ? email.sender.match(/<([^>]+)>/)?.[1] || email.sender : email.sender.includes("@") ? email.sender : ""}
+														</span>
+													</div>
 													<span className="text-xs text-kumo-subtle shrink-0">
 														{formatListDate(email.date)}
 													</span>
@@ -1051,11 +1056,16 @@ export default function EmailListRoute() {
 									{/* Content */}
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center gap-2">
-											<span
-												className={`truncate text-sm ${hasUnread(email) ? "font-semibold text-kumo-default" : "text-kumo-strong"}`}
-											>
-												{formatParticipants(email)}
-											</span>
+											<div className="min-w-0">
+												<span
+													className={`truncate text-sm block ${hasUnread(email) ? "font-semibold text-kumo-default" : "text-kumo-strong"}`}
+												>
+													{formatParticipants(email)}
+												</span>
+												<span className="text-[11px] text-kumo-subtle truncate block">
+													{email.sender.includes("<") ? email.sender.match(/<([^>]+)>/)?.[1] || email.sender : email.sender.includes("@") ? email.sender : ""}
+												</span>
+											</div>
 											{(email.thread_count ?? 1) > 1 && (
 												<span className="shrink-0 text-xs text-kumo-subtle bg-kumo-fill rounded-full px-1.5 py-0.5 font-medium">
 													{email.thread_count}

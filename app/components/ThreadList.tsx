@@ -156,8 +156,11 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 						}`}
 					>
 						{thread.other_senders.length > 0
-							? `${thread.last_sender} + ${thread.other_senders.length}`
-							: thread.last_sender}
+							? `${thread.last_sender.split("@")[0] || thread.last_sender} + ${thread.other_senders.length}`
+							: (thread.last_sender.split("@")[0] || thread.last_sender)}
+					</span>
+					<span className="text-[11px] text-kumo-subtle truncate ml-2">
+						{thread.last_sender.includes("<") ? thread.last_sender.match(/<([^>]+)>/)?.[1] || thread.last_sender : thread.last_sender.includes("@") ? thread.last_sender : ""}
 					</span>
 					{isUnread && (
 						<div className="shrink-0 w-2 h-2 rounded-full bg-kumo-brand" />
