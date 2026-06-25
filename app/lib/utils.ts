@@ -22,6 +22,33 @@ export {
 export const formatComposeDate = formatQuotedDate;
 
 /**
+ * Parse a sender string into a friendly name and email.
+ * Handles: "Name <email>" → { name: "Name", email: "email@..." }
+ *          "email@domain" → { name: null, email: "email@...", domain: "domain" }
+ *          "no-reply@domain" → { name: null, email: "...", domain: "domain" }
+ */
+export function parseSender(raw: string): { name: string | null; email: string; domain: string } {
+	const match = raw.match(/^"?([^"<]*)"?\s*<([^>]+)>$/);
+	if (match) {
+		const name = match[1].trim();
+		const email = match[2].trim();
+		const domain = email.split("@")[1] || "";
+		return { name: name || null, email, domain };
+	}
+	const trimmed = raw.trim();
+	const domain = trimmed.includes("@") ? (trimmed.split("@")[1] || "") : "";
+	return { name: null, email: trimmed, domain };
+}
+
+/** Get the display name for a sender: friendly name > domain > email prefix */
+export function senderDisplayName(raw: string): string {
+	const parsed = parseSender(raw);
+	if (parsed.name) return parsed.name;
+	if (parsed.domain) return parsed.domain;
+	return parsed.email.split("@")[0] || parsed.email;
+}
+
+/**
  * Format a byte count as a human-readable file size.
  */
 export function formatBytes(bytes: number, decimals = 1): string {

@@ -22,7 +22,7 @@ import { Folders } from "shared/folders";
 import { formatListDate } from "shared/dates";
 import MailboxSplitView from "~/components/MailboxSplitView";
 import ThreadList from "~/components/ThreadList";
-import { getSnippetText } from "~/lib/utils";
+import { getSnippetText, senderDisplayName, parseSender } from "~/lib/utils";
 import {
 	useDeleteEmail,
 	useEmails,
@@ -569,18 +569,6 @@ export default function EmailListRoute() {
 		}
 	};
 
-	const formatParticipants = (email: Email): string => {
-		if (email.participants) {
-			const names = email.participants
-				.split(",")
-				.map((p) => p.trim().split("@")[0])
-				.filter((name, idx, arr) => arr.indexOf(name) === idx);
-			if (names.length <= 3) return names.join(", ");
-			return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
-		}
-		return email.sender.split("@")[0];
-	};
-
 	const handleStar = (emailId: string) => {
 		const email = emails.find((e) => e.id === emailId);
 		if (email && mailboxId) {
@@ -946,11 +934,11 @@ export default function EmailListRoute() {
 												>
 													{!email.read && <div className="w-2 h-2 rounded-full bg-kumo-brand shrink-0" />}
 													<div className="flex-1 min-w-0">
-														<span className={`text-sm truncate block ${!email.read ? "font-semibold" : ""}`}>
-															{email.sender.split("@")[0] || email.sender} — {email.subject}
+														<span className={`text-sm truncate block font-bold text-kumo-default`}>
+															{senderDisplayName(email.sender)} — {email.subject}
 														</span>
 														<span className="text-[11px] text-kumo-subtle truncate block">
-															{email.sender.includes("<") ? email.sender.match(/<([^>]+)>/)?.[1] || email.sender : email.sender.includes("@") ? email.sender : ""}
+															{parseSender(email.sender).email}
 														</span>
 													</div>
 													<span className="text-xs text-kumo-subtle shrink-0">
@@ -1057,13 +1045,11 @@ export default function EmailListRoute() {
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center gap-2">
 											<div className="min-w-0">
-												<span
-													className={`truncate text-sm block ${hasUnread(email) ? "font-semibold text-kumo-default" : "text-kumo-strong"}`}
-												>
-													{formatParticipants(email)}
+												<span className="truncate text-sm block font-bold text-kumo-default">
+													{senderDisplayName(email.sender)}
 												</span>
 												<span className="text-[11px] text-kumo-subtle truncate block">
-													{email.sender.includes("<") ? email.sender.match(/<([^>]+)>/)?.[1] || email.sender : email.sender.includes("@") ? email.sender : ""}
+													{parseSender(email.sender).email}
 												</span>
 											</div>
 											{(email.thread_count ?? 1) > 1 && (

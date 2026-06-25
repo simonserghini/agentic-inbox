@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { useParams } from "react-router";
 import { formatListDate } from "shared/dates";
-import { getSnippetText } from "~/lib/utils";
+import { getSnippetText, senderDisplayName, parseSender } from "~/lib/utils";
 import {
 	useDeleteEmail,
 	useMoveEmail,
@@ -151,16 +151,14 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2 mb-0.5">
 					<span
-						className={`text-sm truncate ${
-							isUnread ? "font-bold text-kumo-default" : "font-medium text-kumo-strong"
-						}`}
+						className={`text-sm truncate font-bold text-kumo-default`}
 					>
 						{thread.other_senders.length > 0
-							? `${thread.last_sender.split("@")[0] || thread.last_sender} + ${thread.other_senders.length}`
-							: (thread.last_sender.split("@")[0] || thread.last_sender)}
+							? `${senderDisplayName(thread.last_sender)} + ${thread.other_senders.length}`
+							: senderDisplayName(thread.last_sender)}
 					</span>
 					<span className="text-[11px] text-kumo-subtle truncate ml-2">
-						{thread.last_sender.includes("<") ? thread.last_sender.match(/<([^>]+)>/)?.[1] || thread.last_sender : thread.last_sender.includes("@") ? thread.last_sender : ""}
+						{parseSender(thread.last_sender).email}
 					</span>
 					{isUnread && (
 						<div className="shrink-0 w-2 h-2 rounded-full bg-kumo-brand" />

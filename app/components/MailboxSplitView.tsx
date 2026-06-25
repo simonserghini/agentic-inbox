@@ -95,12 +95,7 @@ export default function MailboxSplitView({
 					{isComposing && !selectedEmailId ? (
 						<ComposePanel />
 					) : isComposing && selectedEmailId ? (
-						<div className="flex flex-col h-full overflow-y-auto">
-							<ComposePanel />
-							<div className="border-t border-kumo-line">
-								<EmailPanel emailId={selectedEmailId} onNavigate={onNavigate} />
-							</div>
-						</div>
+						<ComposePanel />
 					) : selectedEmailId ? (
 						<EmailPanel emailId={selectedEmailId} onNavigate={onNavigate} />
 					) : null}
