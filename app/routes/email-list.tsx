@@ -350,7 +350,7 @@ export default function EmailListRoute() {
 
 	const smartGroups = smartData?.groups ?? {};
 	const smartSections = useMemo(() => {
-		const order = ["Action Required", "Invoices", "Travel", "Newsletters", "Other", "uncategorized"];
+		const order = ["Important", "Updates", "No Reply", "Promotions", "uncategorized"];
 		return order.filter((cat) => smartGroups[cat]?.length > 0);
 	}, [smartGroups]);
 
@@ -810,7 +810,7 @@ export default function EmailListRoute() {
 						{folderName}
 					</h1>
 					{folder === Folders.INBOX && (
-						<Tooltip content={smartMode ? "Switch to regular inbox" : "Smart Inbox — AI-grouped"} side="bottom" asChild>
+						<Tooltip content={smartMode ? "Switch to regular inbox" : "Smart — Important first"} side="bottom" asChild>
 							<Button
 								variant={smartMode ? "secondary" : "ghost"}
 								size="sm"
@@ -914,10 +914,10 @@ export default function EmailListRoute() {
 							{smartSections.map((category) => {
 								const emails = smartGroups[category] || [];
 								const labels: Record<string, { icon: React.ReactNode; color: string }> = {
-									"Action Required": { icon: <StarIcon size={14} weight="fill" className="text-kumo-warning" />, color: "border-l-kumo-warning bg-kumo-warning/5" },
-									"Invoices": { icon: <FileIcon size={14} className="text-kumo-brand" />, color: "border-l-kumo-brand bg-kumo-brand/5" },
-									"Travel": { icon: <PaperPlaneTiltIcon size={14} className="text-kumo-success" />, color: "border-l-kumo-success bg-kumo-success/5" },
-									"Newsletters": { icon: <EnvelopeSimpleIcon size={14} className="text-kumo-subtle" />, color: "border-l-kumo-subtle bg-kumo-tint" },
+									"Important": { icon: <StarIcon size={14} weight="fill" className="text-kumo-warning" />, color: "border-l-kumo-warning bg-kumo-warning/5" },
+									"Updates": { icon: <ClockIcon size={14} className="text-kumo-brand" />, color: "border-l-kumo-brand bg-kumo-brand/5" },
+									"Promotions": { icon: <PaperPlaneTiltIcon size={14} className="text-kumo-subtle" />, color: "border-l-kumo-subtle bg-kumo-tint" },
+									"No Reply": { icon: <EnvelopeSimpleIcon size={14} className="text-kumo-subtle" />, color: "border-l-kumo-subtle bg-kumo-tint" },
 								};
 								const label = labels[category] || { icon: null, color: "bg-kumo-tint" };
 								return (

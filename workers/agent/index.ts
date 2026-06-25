@@ -517,7 +517,12 @@ export class EmailAgent extends AIChatAgent<any> {
 				//   config.autoArchiveCategories: string[] — categories to auto-archive (soft — moves to archive folder)
 				//   config.autoMarkReadCategories: string[] — categories to auto-mark as read
 				try {
-					const catPrompt = config.promptCategorization || `Classify this email into one of these categories: Invoices, Travel, Newsletters, Action Required, or Other.
+					const catPrompt = config.promptCategorization || `Classify this email into one of these categories:
+- Important — needs your attention, requires a reply or action (urgent requests, meeting invites, client emails, tasks)
+- No Reply — informational only, newsletters, receipts, notifications, FYI emails that don't need a response
+- Promotions — marketing emails, deals, offers, discounts, sales
+- Updates — shipping notifications, account updates, bills, confirmations, status updates
+
 Only respond with the category name. No other text.
 
 Subject: ${emailData.subject}
@@ -529,8 +534,8 @@ Body Snippet: ${emailBody.substring(0, 500)}`;
 					});
 
 					const category = classificationResult.text.trim().replace(/[.,!]/g, "");
-					const validCategories = ["Invoices", "Travel", "Newsletters", "Action Required"];
-					const autoArchiveCategories: string[] = config.autoArchiveCategories || ["Newsletters"];
+					const validCategories = ["Important", "No Reply", "Promotions", "Updates"];
+					const autoArchiveCategories: string[] = config.autoArchiveCategories || ["No Reply", "Promotions"];
 					const autoMarkReadCategories: string[] = config.autoMarkReadCategories || [];
 					
 					if (validCategories.includes(category)) {
