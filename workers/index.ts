@@ -513,23 +513,46 @@ async function triggerWebhook(env: Env, ctx: ExecutionContext, payload: any) {
 	try {
 		const cfgObj = await env.BUCKET.get("_branding/config.json");
 		const cfg = cfgObj ? await cfgObj.json() as any : {};
-		if (cfg.webhookUrl) {
-			ctx.waitUntil(fetch(cfg.webhookUrl, {
+		if (!cfg.webhookUrl) {
+			console.log("[webhook] No webhook URL configured — skipping");
+			return;
+		}
+		const maskedUrl = cfg.webhookUrl.replace(/\/\/[^@]+@/, "//***@"); // mask auth in URL
+		console.log(`[webhook] Firing ${payload.event} → ${maskedUrl}`);
+		ctx.waitUntil(
+			fetch(cfg.webhookUrl, {
 				method: "POST",
-				headers: { 
+				headers: {
 					"Content-Type": "application/json",
 					"X-Webhook-Source": "Agentic-Inbox",
 					"X-Webhook-Event": payload.event || "unknown",
-					"User-Agent": "Agentic-Inbox-Webhook/1.0"
+					"User-Agent": "Agentic-Inbox-Webhook/1.0",
 				},
 				body: JSON.stringify({
 					...payload,
 					timestamp: new Date().toISOString(),
+				}),
+			})
+				.then((res) => {
+					if (!res.ok) {
+						console.error(
+							`[webhook] Delivery failed: HTTP ${res.status} ${res.statusText} for ${maskedUrl}`,
+						);
+					} else {
+						console.log(
+							`[webhook] Delivered OK: HTTP ${res.status} — ${maskedUrl}`,
+						);
+					}
 				})
-			}).catch(e => console.error("Webhook failed:", e)));
-		}
+				.catch((e) => {
+					console.error(
+						`[webhook] Network error delivering to ${maskedUrl}:`,
+						(e as Error).message,
+					);
+				}),
+		);
 	} catch (e) {
-		console.error("Failed to trigger webhook:", e);
+		console.error("[webhook] Failed to read config or trigger:", (e as Error).message);
 	}
 }
 
