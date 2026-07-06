@@ -666,7 +666,11 @@ async function streamToArrayBuffer(stream: ReadableStream, streamSize: number) {
 
 async function receiveEmail(event: { raw: ReadableStream; rawSize: number }, env: Env, ctx: ExecutionContext) {
 	const rawEmail = await streamToArrayBuffer(event.raw, event.rawSize);
-	const parsedEmail = await new PostalMime().parse(rawEmail);
+	// rfc822Attachments: true forces all non-text leaf parts (including
+	// inline images without Content-Disposition: attachment) to be treated
+	// as attachments rather than inline text. Without this, images embedded
+	// in multipart/related HTML emails are silently discarded.
+	const parsedEmail = await new PostalMime({ rfc822Attachments: true }).parse(rawEmail);
 
 	if (!parsedEmail.to?.length || !parsedEmail.to[0].address) throw new Error("received email with empty to");
 
