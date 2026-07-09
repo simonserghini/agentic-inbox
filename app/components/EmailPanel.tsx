@@ -3,7 +3,7 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { Folders } from "shared/folders";
 import EmailPanelDialogs from "~/components/email-panel/EmailPanelDialogs";
@@ -32,7 +32,8 @@ function EmailPanelSkeleton() {
 export default function EmailPanel({ emailId, onNavigate }: { emailId: string; onNavigate?: (direction: "next" | "prev") => void }) {
 	const { mailboxId, folder } = useParams<{ mailboxId: string; folder: string }>();
 	const { data: email } = useEmail(mailboxId, emailId) as { data?: Email };
-	const { data: threadRepliesRaw } = useThreadReplies(mailboxId, email?.thread_id) as {
+	const threadId = email?.thread_id ?? emailId;
+	const { data: threadRepliesRaw } = useThreadReplies(mailboxId, threadId) as {
 		data?: Email[];
 	};
 	const updateEmail = useUpdateEmail();
@@ -64,11 +65,6 @@ export default function EmailPanel({ emailId, onNavigate }: { emailId: string; o
 		return [email, ...threadReplies].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 	}, [email, threadReplies]);
 
-	// Reset expanded state only when the selected email changes, not on every refetch.
-	// Using allMessages as a dependency would reset user expand/collapse state on background refetches.
-	const currentEmailId = email?.id;
-	useEffect(() => { if (allMessages.length > 1) setExpandedMessages(new Set([allMessages[0].id])); }, [currentEmailId]); // eslint-disable-line react-hooks/exhaustive-deps
-
 	const toggleExpand = (msgId: string) => { setExpandedMessages((prev) => { const next = new Set(prev); if (next.has(msgId)) next.delete(msgId); else next.add(msgId); return next; }); };
 
 	const draftMessageIds = useMemo(() => {
@@ -84,6 +80,27 @@ export default function EmailPanel({ emailId, onNavigate }: { emailId: string; o
 		const nonDrafts = allMessages.filter((msg) => !draftMessageIds.has(msg.id));
 		return nonDrafts.length > 0 ? nonDrafts[0] : email;
 	}, [allMessages, draftMessageIds, currentMailbox?.email, email]);
+
+	// Which message to expand on open — never default to an auto-draft.
+	const focusMessage = useMemo(() => {
+		if (allMessages.length <= 1) return email;
+		const clicked = allMessages.find((m) => m.id === emailId);
+		if (clicked && !draftMessageIds.has(clicked.id)) return clicked;
+		return lastReceivedMessage ?? email;
+	}, [allMessages, emailId, email, draftMessageIds, lastReceivedMessage]);
+
+	// Expand the actual email on open, not the newest item (often an auto-draft).
+	const expandedInitKey = useRef<string | null>(null);
+	useEffect(() => {
+		expandedInitKey.current = null;
+	}, [emailId]);
+	useEffect(() => {
+		if (!emailId || !focusMessage?.id) return;
+		const key = `${emailId}:${focusMessage.id}`;
+		if (expandedInitKey.current === key) return;
+		setExpandedMessages(new Set([focusMessage.id]));
+		expandedInitKey.current = key;
+	}, [emailId, focusMessage?.id]);
 
 	const moveToFolders = useMemo(() => { const cur = folder || email?.folder_id; return folders.filter((f) => f.id !== cur); }, [folders, folder, email?.folder_id]);
 	const handleSnooze = (until: string) => { if (mailboxId && email) snoozeEmailMut.mutate({ mailboxId, id: email.id, until }); };
