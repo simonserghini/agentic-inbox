@@ -1,4 +1,8 @@
-import { Button, Input, useKumoToastManager, Switch, Surface, InputArea } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Input, InputArea } from "@cloudflare/kumo/components/input";
+import { Surface } from "@cloudflare/kumo/components/surface";
+import { Switch } from "@cloudflare/kumo/components/switch";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
 import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool, Sparkles, Terminal } from "lucide-react";

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { applyDarkMode, resolveIsDark } from "~/lib/theme";
 import { type BrandingConfig, defaultBranding } from "~/types/branding";
 
 interface BrandingContextType {
@@ -9,14 +10,21 @@ interface BrandingContextType {
 
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
-export function BrandingProvider({ children }: { children: React.ReactNode }) {
-	const [branding, setBranding] = useState<BrandingConfig>(() => {
-		if (typeof window !== "undefined") {
-			const saved = localStorage.getItem("branding_cache");
-			if (saved) return { ...defaultBranding, ...JSON.parse(saved) };
-		}
+function loadCachedBranding(): BrandingConfig {
+	if (typeof window === "undefined") return defaultBranding;
+	const saved = localStorage.getItem("branding_cache");
+	if (!saved) return defaultBranding;
+	try {
+		return { ...defaultBranding, ...JSON.parse(saved) };
+	} catch {
+		localStorage.removeItem("branding_cache");
+		localStorage.removeItem("branding_cached_at");
 		return defaultBranding;
-	});
+	}
+}
+
+export function BrandingProvider({ children }: { children: React.ReactNode }) {
+	const [branding, setBranding] = useState<BrandingConfig>(loadCachedBranding);
 
 	const applyBranding = (cfg: BrandingConfig) => {
 		if (typeof document === "undefined") return;
@@ -25,14 +33,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 		document.title = cfg.appName;
 		const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
 		if (link) link.href = cfg.faviconUrl;
-
-		if (cfg.darkModeEnabled) {
-			document.documentElement.classList.add("dark");
-			document.documentElement.setAttribute("data-mode", "dark");
-		} else {
-			document.documentElement.classList.remove("dark");
-			document.documentElement.setAttribute("data-mode", "light");
-		}
+		applyDarkMode(resolveIsDark(cfg.darkModeEnabled));
 	};
 
 	const refreshBranding = async () => {
@@ -43,6 +44,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 				const newBranding = { ...defaultBranding, ...data };
 				setBranding(newBranding);
 				localStorage.setItem("branding_cache", JSON.stringify(newBranding));
+				localStorage.setItem("branding_cached_at", String(Date.now()));
 				applyBranding(newBranding);
 			}
 		} catch (error) {
@@ -52,8 +54,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		applyBranding(branding);
-		refreshBranding();
-	}, []);
+		const cachedAt = localStorage.getItem("branding_cached_at");
+		const shouldFetch = !cachedAt || Date.now() - Number(cachedAt) > 3_600_000;
+		if (shouldFetch) refreshBranding();
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	return (
 		<BrandingContext.Provider value={{ branding, setBranding, refreshBranding }}>
@@ -64,6 +68,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
 export function useBranding() {
 	const context = useContext(BrandingContext);
-	if (!context) throw new Error();
+	if (!context) throw new Error("useBranding must be used within BrandingProvider");
 	return context;
 }

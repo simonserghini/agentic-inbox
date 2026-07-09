@@ -2,7 +2,8 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Button, Tooltip } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import { BellIcon, BellRingingIcon, BellSlashIcon, GearSixIcon, ListIcon, MagnifyingGlassIcon, RobotIcon } from "@phosphor-icons/react";
 import ThemeToggle from "~/components/ThemeToggle";
 import SearchInput from "~/components/SearchInput";

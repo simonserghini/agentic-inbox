@@ -1,4 +1,7 @@
-import { Button, Loader, Pagination, Tooltip } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Loader } from "@cloudflare/kumo/components/loader";
+import { Pagination } from "@cloudflare/kumo/components/pagination";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import {
 	ArchiveIcon,
 	ArrowBendUpLeftIcon,

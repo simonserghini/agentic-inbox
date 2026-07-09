@@ -2,7 +2,11 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Button, Loader, Tooltip, Surface, useKumoToastManager } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Loader } from "@cloudflare/kumo/components/loader";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
+import { Surface } from "@cloudflare/kumo/components/surface";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
 	ArrowUpIcon,

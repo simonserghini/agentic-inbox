@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Loader } from "@cloudflare/kumo";
+import { Loader } from "@cloudflare/kumo/components/loader";
 import { useParams } from "react-router";
 import { useMailbox } from "~/queries/mailboxes";
 import SettingsUnified from "~/components/SettingsUnified";

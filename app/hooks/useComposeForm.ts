@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { useKumoToastManager } from "@cloudflare/kumo";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	buildQuotedReplyBlock,

@@ -1,4 +1,5 @@
-import { Button, Tooltip } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import { Moon, Sun } from "lucide-react";
 import { useDarkMode } from "~/hooks/useDarkMode";
 

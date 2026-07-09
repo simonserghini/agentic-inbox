@@ -26,7 +26,7 @@ export default function MailboxSplitView({
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	// Unified drag handler — supports both mouse and touch
-	const handleDragStart = useCallback((clientY: number) => {
+	const handleDragStart = useCallback(() => {
 		setIsDragging(true);
 		document.body.style.cursor = "row-resize";
 		document.body.style.userSelect = "none";
@@ -34,11 +34,11 @@ export default function MailboxSplitView({
 
 	const handleMouseDown = useCallback((e: React.MouseEvent) => {
 		e.preventDefault();
-		handleDragStart(e.clientY);
+		handleDragStart();
 	}, [handleDragStart]);
 
-	const handleTouchStart = useCallback((e: React.TouchEvent) => {
-		handleDragStart(e.touches[0].clientY);
+	const handleTouchStart = useCallback(() => {
+		handleDragStart();
 	}, [handleDragStart]);
 
 	useEffect(() => {

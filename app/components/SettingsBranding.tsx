@@ -1,4 +1,6 @@
-import { Button, Input, useKumoToastManager } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Input } from "@cloudflare/kumo/components/input";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
 

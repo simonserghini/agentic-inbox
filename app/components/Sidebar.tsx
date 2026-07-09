@@ -2,7 +2,11 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Badge, Button, Dialog, Input, Tooltip } from "@cloudflare/kumo";
+import { Badge } from "@cloudflare/kumo/components/badge";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Dialog } from "@cloudflare/kumo/components/dialog";
+import { Input } from "@cloudflare/kumo/components/input";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import {
 	ArchiveIcon,
 	CaretLeftIcon,

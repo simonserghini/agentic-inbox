@@ -2,7 +2,7 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Tooltip } from "@cloudflare/kumo";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import {
 	EnvelopeSimpleIcon,
 	GearSixIcon,

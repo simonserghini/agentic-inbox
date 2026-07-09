@@ -2,15 +2,13 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import {
-	Button,
-	Dialog,
-	Input,
-	Loader,
-	Select,
-	Text,
-	useKumoToastManager,
-} from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Dialog } from "@cloudflare/kumo/components/dialog";
+import { Input } from "@cloudflare/kumo/components/input";
+import { Loader } from "@cloudflare/kumo/components/loader";
+import { Select } from "@cloudflare/kumo/components/select";
+import { Text } from "@cloudflare/kumo/components/text";
+import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import { EnvelopeIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";

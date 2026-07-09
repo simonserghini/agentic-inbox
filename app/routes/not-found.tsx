@@ -2,7 +2,8 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Button, Empty } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Empty } from "@cloudflare/kumo/components/empty";
 import { WarningIcon } from "@phosphor-icons/react";
 import { useNavigate } from "react-router";
 

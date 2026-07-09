@@ -2,14 +2,12 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import {
-	Button,
-	Empty,
-	LinkProvider,
-	Loader,
-	Toasty,
-	TooltipProvider,
-} from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Empty } from "@cloudflare/kumo/components/empty";
+import { LinkProvider } from "@cloudflare/kumo/utils";
+import { Loader } from "@cloudflare/kumo/components/loader";
+import { Toasty } from "@cloudflare/kumo/components/toast";
+import { TooltipProvider } from "@cloudflare/kumo/components/tooltip";
 import { WarningIcon } from "@phosphor-icons/react";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { forwardRef, useState } from "react";
@@ -31,7 +29,7 @@ function makeQueryClient() {
 	return new QueryClient({
 		defaultOptions: {
 			queries: {
-				staleTime: 30_000,
+				staleTime: 120_000,
 				refetchOnWindowFocus: false,
 				retry: (failureCount, error) => {
 					// Don't retry 4xx errors (not found, unauthorized, etc.)
@@ -130,12 +128,12 @@ export default function App() {
 				<LinkProvider component={KumoLink}>
 					<TooltipProvider>
 						<Toasty>
-					<Outlet />
-					<PWAInstallPrompt />
-					</Toasty>
-				</TooltipProvider>
-			</LinkProvider>
-		</BrandingProvider>
+							<Outlet />
+							<PWAInstallPrompt />
+						</Toasty>
+					</TooltipProvider>
+				</LinkProvider>
+			</BrandingProvider>
 		</QueryClientProvider>
 	);
 }

@@ -1,38 +1,22 @@
 import { useEffect, useState } from "react";
+import { useBranding } from "~/contexts/BrandingContext";
+import { applyDarkMode, resolveIsDark, setStoredThemePreference } from "~/lib/theme";
 
 export function useDarkMode() {
-	const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+	const { branding } = useBranding();
+	const [isDarkMode, setIsDarkMode] = useState(() => resolveIsDark(branding.darkModeEnabled));
 
 	useEffect(() => {
-		// Initialize theme from localStorage or system preference
-		const savedTheme = localStorage.getItem("theme");
-		const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-		const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark);
-		
-		setIsDarkMode(shouldBeDark);
-		
-		if (shouldBeDark) {
-			document.documentElement.classList.add("dark");
-			// Add data-mode="dark" for Kumo UI library compatibility
-			document.documentElement.setAttribute("data-mode", "dark");
-		} else {
-			document.documentElement.classList.remove("dark");
-			document.documentElement.setAttribute("data-mode", "light");
-		}
-	}, []);
+		const isDark = resolveIsDark(branding.darkModeEnabled);
+		setIsDarkMode(isDark);
+		applyDarkMode(isDark);
+	}, [branding.darkModeEnabled]);
 
 	const toggleDarkMode = () => {
 		setIsDarkMode((prev) => {
 			const newMode = !prev;
-			if (newMode) {
-				document.documentElement.classList.add("dark");
-				document.documentElement.setAttribute("data-mode", "dark");
-				localStorage.setItem("theme", "dark");
-			} else {
-				document.documentElement.classList.remove("dark");
-				document.documentElement.setAttribute("data-mode", "light");
-				localStorage.setItem("theme", "light");
-			}
+			setStoredThemePreference(newMode ? "dark" : "light");
+			applyDarkMode(newMode);
 			return newMode;
 		});
 	};

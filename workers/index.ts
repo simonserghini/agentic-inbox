@@ -744,7 +744,6 @@ From: ${parsedEmail.from?.address || "Unknown"}
 Content: ${bodyText.substring(0, 1000)}`;
 
 		const aiResponse = await env.AI.run(
-			// @ts-expect-error — model string not in generated union
 			"@cf/meta/llama-3.1-8b-instruct",
 			{
 				messages: [{ role: "user", content: triagePrompt }],

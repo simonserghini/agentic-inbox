@@ -2,7 +2,12 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Banner, Button, Dialog, Input, Text, Tooltip } from "@cloudflare/kumo";
+import { Banner } from "@cloudflare/kumo/components/banner";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Dialog } from "@cloudflare/kumo/components/dialog";
+import { Input } from "@cloudflare/kumo/components/input";
+import { Text } from "@cloudflare/kumo/components/text";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import { ArchiveIcon, CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useParams } from "react-router";

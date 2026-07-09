@@ -2,7 +2,9 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
-import { Badge, Button, Tooltip } from "@cloudflare/kumo";
+import { Badge } from "@cloudflare/kumo/components/badge";
+import { Button } from "@cloudflare/kumo/components/button";
+import { Tooltip } from "@cloudflare/kumo/components/tooltip";
 import {
 	ArchiveIcon,
 	ArrowBendUpLeftIcon,
@@ -30,16 +32,14 @@ interface ThreadRowProps {
 	selectedIds?: Set<string>;
 	toggleSelect?: (id: string) => void;
 	onComposeReply: (mode: "reply" | "reply-all", sender: string, subject: string) => void;
+	onStar: (thread: ThreadSummary) => void;
+	onArchive: (thread: ThreadSummary) => void;
+	onDelete: (thread: ThreadSummary) => void;
 }
 
 const SWIPE_THRESHOLD = 60;
 
-function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect, onComposeReply }: ThreadRowProps) {
-	const { mailboxId } = useParams<{ mailboxId: string }>();
-	const updateEmail = useUpdateEmail();
-	const moveEmail = useMoveEmail();
-	const deleteEmail = useDeleteEmail();
-	const qc = useQueryClient();
+function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect, onComposeReply, onStar, onArchive, onDelete }: ThreadRowProps) {
 	const rowRef = useRef<HTMLDivElement>(null);
 	const touchStartX = useRef(0);
 	const [swipeOffset, setSwipeOffset] = useState(0);
@@ -51,35 +51,20 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	const hasBatchMode = !!toggleSelect && !!selectedIds;
 	const isBatchActive = hasBatchMode && selectedIds.size > 0;
 
-	const invalidate = useCallback(() => {
-		if (!mailboxId) return;
-		qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
-		qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
-	}, [mailboxId, qc]);
-
 	const handleStar = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation();
-		updateEmail.mutate(
-			{ mailboxId: mailboxId!, id: thread.thread_id, data: { starred: !thread.starred } },
-			{ onSuccess: () => invalidate() },
-		);
-	}, [mailboxId, thread.thread_id, thread.starred, updateEmail, invalidate]);
+		onStar(thread);
+	}, [onStar, thread]);
 
 	const handleArchive = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
 		if (e && "stopPropagation" in e) e.stopPropagation();
-		moveEmail.mutate(
-			{ mailboxId: mailboxId!, id: thread.thread_id, folderId: "archive" },
-			{ onSuccess: () => invalidate() },
-		);
-	}, [mailboxId, thread.thread_id, moveEmail, invalidate]);
+		onArchive(thread);
+	}, [onArchive, thread]);
 
 	const handleDelete = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
 		if (e && "stopPropagation" in e) e.stopPropagation();
-		deleteEmail.mutate(
-			{ mailboxId: mailboxId!, id: thread.thread_id },
-			{ onSuccess: () => invalidate() },
-		);
-	}, [mailboxId, thread.thread_id, deleteEmail, invalidate]);
+		onDelete(thread);
+	}, [onDelete, thread]);
 
 	// Swipe handlers using React state instead of direct DOM mutation
 	const onTouchStartSwipe = useCallback((e: React.TouchEvent) => {
@@ -261,6 +246,42 @@ export default function ThreadList({
 	onSelectThread,
 	onComposeReply,
 }: ThreadListProps) {
+	const { mailboxId } = useParams<{ mailboxId: string }>();
+	const updateEmail = useUpdateEmail();
+	const moveEmail = useMoveEmail();
+	const deleteEmail = useDeleteEmail();
+	const qc = useQueryClient();
+
+	const invalidate = useCallback(() => {
+		if (!mailboxId) return;
+		qc.invalidateQueries({ queryKey: queryKeys.emails.threads(mailboxId, {}) });
+		qc.invalidateQueries({ queryKey: queryKeys.emails.list(mailboxId, {}) });
+	}, [mailboxId, qc]);
+
+	const onStar = useCallback((thread: ThreadSummary) => {
+		if (!mailboxId) return;
+		updateEmail.mutate(
+			{ mailboxId, id: thread.thread_id, data: { starred: !thread.starred } },
+			{ onSuccess: () => invalidate() },
+		);
+	}, [mailboxId, updateEmail, invalidate]);
+
+	const onArchive = useCallback((thread: ThreadSummary) => {
+		if (!mailboxId) return;
+		moveEmail.mutate(
+			{ mailboxId, id: thread.thread_id, folderId: "archive" },
+			{ onSuccess: () => invalidate() },
+		);
+	}, [mailboxId, moveEmail, invalidate]);
+
+	const onDelete = useCallback((thread: ThreadSummary) => {
+		if (!mailboxId) return;
+		deleteEmail.mutate(
+			{ mailboxId, id: thread.thread_id },
+			{ onSuccess: () => invalidate() },
+		);
+	}, [mailboxId, deleteEmail, invalidate]);
+
 	return (
 		<div className="flex flex-col relative" role="list" aria-label="Email threads">
 			{threads.map((thread) => (
@@ -272,6 +293,9 @@ export default function ThreadList({
 						selectedIds={selectedIds}
 						toggleSelect={toggleSelect}
 						onComposeReply={onComposeReply}
+						onStar={onStar}
+						onArchive={onArchive}
+						onDelete={onDelete}
 					/>
 				</div>
 			))}
