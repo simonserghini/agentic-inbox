@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agentic Inbox — AI email on Cloudflare</title>
-  <meta name="description" content="A self-hosted email client with a built-in AI agent. Send, receive, and manage mail entirely on Cloudflare Workers.">
+  <meta name="description" content="Self-hosted AI email on Cloudflare. BYOK Resend, webhooks, white-label branding, MCP, and a built-in agent.">
   <meta name="theme-color" content="#f6821f">
   <link rel="canonical" href="https://agenticinbox.serghini.me/">
 
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://agenticinbox.serghini.me/">
   <meta property="og:title" content="Agentic Inbox — AI email on Cloudflare">
-  <meta property="og:description" content="A self-hosted email client with a built-in AI agent. Send, receive, and manage mail entirely on Cloudflare Workers.">
+  <meta property="og:description" content="Self-hosted AI email on Cloudflare. BYOK Resend, webhooks, white-label branding, MCP, and a built-in agent.">
   <meta property="og:image" content="https://agenticinbox.serghini.me/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -19,7 +19,7 @@
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Agentic Inbox — AI email on Cloudflare">
-  <meta name="twitter:description" content="A self-hosted email client with a built-in AI agent. Send, receive, and manage mail entirely on Cloudflare Workers.">
+  <meta name="twitter:description" content="Self-hosted AI email on Cloudflare. BYOK Resend, webhooks, white-label branding, MCP, and a built-in agent.">
   <meta name="twitter:image" content="https://agenticinbox.serghini.me/og-image.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960' fill='%23f6821f'%3E%3Cpath d='M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm320-280L160-640v400h640v-400L480-440Zm0-80 320-200H160l320 200ZM160-640v-80 480-400Z'/%3E%3C/svg%3E">
   <style>
@@ -447,6 +447,7 @@
       </a>
       <div class="nav-links">
         <a href="#features">Features</a>
+        <a href="#integrations">Integrations</a>
         <a href="#how">How it works</a>
         <a href="https://github.com/simonserghini/agentic-inbox" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
       </div>
@@ -540,14 +541,53 @@
         </div>
         <div class="card">
           <div class="icon">⚙️</div>
-          <h3>Configurable</h3>
-          <p>Custom system prompts per mailbox, branding, webhooks, and persistent agent chat history with streaming responses.</p>
+          <h3>Per-mailbox tuning</h3>
+          <p>Custom agent prompts, tone, signature, and auto-draft rules — each mailbox can behave differently.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="how" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <section id="integrations" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <div class="wrap">
+      <h2>Plug in your stack</h2>
+      <p class="section-sub">Works out of the box on Cloudflare. Bring your own keys and branding when you need more control.</p>
+      <div class="features">
+        <div class="card">
+          <div class="icon">📤</div>
+          <h3>Cloudflare Email send</h3>
+          <p>Outbound mail uses the built-in Email Service binding by default — no extra provider signup. Receive via Email Routing, send from the Worker.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔑</div>
+          <h3>BYOK Resend</h3>
+          <p>Drop in your own Resend API key for deliverability and analytics. Hybrid dispatch: Resend when configured, Cloudflare Email as fallback.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔔</div>
+          <h3>Webhooks</h3>
+          <p>Fire HTTPS webhooks on new inbound mail — payload includes sender, subject, body, and signed attachment download links. Wire up Slack, n8n, or your own pipeline.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🎨</div>
+          <h3>White-label branding</h3>
+          <p>Rename the app, set your brand color, upload a logo and favicon, toggle default dark mode. Your team sees your product, not a generic template.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🛠️</div>
+          <h3>Developer API</h3>
+          <p>REST API with a configurable bearer token. Send mail, manage mailboxes, and integrate from scripts — pair with a Cloudflare Access service token in production.</p>
+        </div>
+        <div class="card">
+          <div class="icon">🔌</div>
+          <h3>MCP + agent prompts</h3>
+          <p>Connect Claude Code, Cursor, or any MCP client to your inbox. Tune system prompts, categorization, and auto-draft behavior per mailbox.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
     <div class="wrap">
       <h2>How it works</h2>
       <p class="section-sub">Three pieces of Cloudflare infrastructure, one deploy button.</p>
@@ -587,6 +627,8 @@
           <span class="tag">Agents SDK</span>
           <span class="tag">React 19</span>
           <span class="tag">Cloudflare Access</span>
+          <span class="tag">Resend BYOK</span>
+          <span class="tag">Webhooks</span>
         </div>
       </div>
     </div>
