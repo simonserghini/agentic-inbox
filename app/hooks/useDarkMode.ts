@@ -1,9 +1,24 @@
 import { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
-import { applyDarkMode, resolveIsDark, setStoredThemePreference } from "~/lib/theme";
+import {
+	applyDarkMode,
+	getStoredThemePreference,
+	resolveIsDark,
+	setStoredThemePreference,
+	type ThemePreference,
+} from "~/lib/theme";
+
+export type ThemePreferenceSetting = ThemePreference | "system";
+
+function getThemePreferenceSetting(): ThemePreferenceSetting {
+	return getStoredThemePreference() ?? "system";
+}
 
 export function useDarkMode() {
 	const { branding } = useBranding();
+	const [themePreference, setThemePreferenceState] = useState<ThemePreferenceSetting>(
+		getThemePreferenceSetting,
+	);
 	const [isDarkMode, setIsDarkMode] = useState(() => resolveIsDark(branding.darkModeEnabled));
 
 	useEffect(() => {
@@ -12,14 +27,26 @@ export function useDarkMode() {
 		applyDarkMode(isDark);
 	}, [branding.darkModeEnabled]);
 
-	const toggleDarkMode = () => {
-		setIsDarkMode((prev) => {
-			const newMode = !prev;
-			setStoredThemePreference(newMode ? "dark" : "light");
-			applyDarkMode(newMode);
-			return newMode;
-		});
+	const applyThemePreference = (preference: ThemePreferenceSetting) => {
+		setThemePreferenceState(preference);
+		if (preference === "system") {
+			localStorage.removeItem("theme");
+		} else {
+			setStoredThemePreference(preference);
+		}
+		const isDark = resolveIsDark(branding.darkModeEnabled);
+		setIsDarkMode(isDark);
+		applyDarkMode(isDark);
 	};
 
-	return { isDarkMode, toggleDarkMode };
+	const toggleDarkMode = () => {
+		const next: ThemePreference = isDarkMode ? "light" : "dark";
+		applyThemePreference(next);
+	};
+
+	const setThemePreference = (preference: ThemePreferenceSetting) => {
+		applyThemePreference(preference);
+	};
+
+	return { isDarkMode, themePreference, toggleDarkMode, setThemePreference };
 }

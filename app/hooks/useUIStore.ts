@@ -3,25 +3,18 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 import { create } from "zustand";
+import {
+	getDefaultAgentPanelOpen,
+	getStoredAgentPanelOpen,
+	getStoredNavCollapsed,
+	getStoredThreadedView,
+	setStoredAgentPanelOpen,
+	setStoredNavCollapsed,
+	setStoredThreadedView,
+} from "~/lib/ui-preferences";
 import type { Email } from "~/types";
 
 export type ComposeMode = "new" | "reply" | "reply-all" | "forward";
-
-const NAV_COLLAPSED_KEY = "agentic-inbox-nav-collapsed";
-const AGENT_PANEL_KEY = "agentic-inbox-agent-panel-open";
-
-function getInitialNavCollapsed(): boolean {
-	if (typeof window === "undefined") return false;
-	return localStorage.getItem(NAV_COLLAPSED_KEY) === "true";
-}
-
-function getInitialAgentPanelOpen(): boolean {
-	if (typeof window === "undefined") return false;
-	const saved = localStorage.getItem(AGENT_PANEL_KEY);
-	if (saved === "true") return true;
-	if (saved === "false") return false;
-	return window.matchMedia("(min-width: 1024px)").matches;
-}
 
 export interface ComposeOptions {
 	mode: ComposeMode;
@@ -52,10 +45,17 @@ interface UIState {
 	// Desktop nav sidebar collapse
 	isNavCollapsed: boolean;
 	toggleNavCollapsed: () => void;
+	setNavCollapsed: (collapsed: boolean) => void;
 
 	// Agent panel
 	isAgentPanelOpen: boolean;
 	toggleAgentPanel: () => void;
+	setAgentPanelOpen: (open: boolean) => void;
+
+	// Inbox layout
+	isThreadedView: boolean;
+	setThreadedView: (threaded: boolean) => void;
+	toggleThreadedView: () => void;
 	agentCommand: string | null;
 	setAgentCommand: (command: string | null) => void;
 
@@ -72,8 +72,9 @@ export const useUIStore = create<UIState>((set, get) => ({
 	composeOptions: { mode: "new", originalEmail: null },
 	isComposeModalOpen: false,
 	isSidebarOpen: false,
-	isNavCollapsed: getInitialNavCollapsed(),
-	isAgentPanelOpen: getInitialAgentPanelOpen(),
+	isNavCollapsed: getStoredNavCollapsed(),
+	isAgentPanelOpen: getStoredAgentPanelOpen() ?? getDefaultAgentPanelOpen(),
+	isThreadedView: getStoredThreadedView(),
 	agentCommand: null,
 
 	selectEmail: (id) => set({ selectedEmailId: id, isComposing: false }),
@@ -106,22 +107,41 @@ export const useUIStore = create<UIState>((set, get) => ({
 	closeSidebar: () => set({ isSidebarOpen: false }),
 	toggleSidebar: () => set({ isSidebarOpen: !get().isSidebarOpen }),
 
-	toggleNavCollapsed: () =>
-		set((state) => {
-			const next = !state.isNavCollapsed;
-			localStorage.setItem(NAV_COLLAPSED_KEY, String(next));
-			return { isNavCollapsed: next };
-		}),
+	toggleNavCollapsed: () => {
+		const next = !get().isNavCollapsed;
+		setStoredNavCollapsed(next);
+		set({ isNavCollapsed: next });
+	},
 
-	toggleAgentPanel: () =>
-		set((state) => {
-			const next = !state.isAgentPanelOpen;
-			localStorage.setItem(AGENT_PANEL_KEY, String(next));
-			return { isAgentPanelOpen: next };
-		}),
+	setNavCollapsed: (collapsed) => {
+		setStoredNavCollapsed(collapsed);
+		set({ isNavCollapsed: collapsed });
+	},
+
+	toggleAgentPanel: () => {
+		const next = !get().isAgentPanelOpen;
+		setStoredAgentPanelOpen(next);
+		set({ isAgentPanelOpen: next });
+	},
+
+	setAgentPanelOpen: (open) => {
+		setStoredAgentPanelOpen(open);
+		set({ isAgentPanelOpen: open });
+	},
+
+	setThreadedView: (threaded) => {
+		setStoredThreadedView(threaded);
+		set({ isThreadedView: threaded });
+	},
+
+	toggleThreadedView: () => {
+		const next = !get().isThreadedView;
+		setStoredThreadedView(next);
+		set({ isThreadedView: next });
+	},
 
 	setAgentCommand: (command) => {
-		localStorage.setItem(AGENT_PANEL_KEY, "true");
+		setStoredAgentPanelOpen(true);
 		set({ agentCommand: command, isAgentPanelOpen: true });
 	},
 

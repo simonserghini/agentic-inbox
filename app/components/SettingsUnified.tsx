@@ -5,7 +5,8 @@ import { Switch } from "@cloudflare/kumo/components/switch";
 import { useKumoToastManager } from "@cloudflare/kumo/components/toast";
 import React, { useEffect, useState } from "react";
 import { useBranding } from "~/contexts/BrandingContext";
-import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool, Sparkles, Terminal } from "lucide-react";
+import { Copy, RotateCcw, Palette, Code, Settings, Mail, Eye, EyeOff, CheckCircle, XCircle, Zap, Bot, PenTool, Sparkles, Terminal, Layout } from "lucide-react";
+import SettingsInterface from "~/components/SettingsInterface";
 import { useParams } from "react-router";
 
 export default function SettingsUnified() {
@@ -23,7 +24,7 @@ export default function SettingsUnified() {
 	const [logo, setLogo] = useState<File | null>(null);
 	const [favicon, setFavicon] = useState<File | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const [activeTab, setActiveTab] = useState<"general" | "branding" | "developer" | "agent">("general");
+	const [activeTab, setActiveTab] = useState<"general" | "interface" | "branding" | "developer" | "agent">("general");
 
 	// Mailbox-specific settings
 	const [agentTone, setAgentTone] = useState("");
@@ -119,6 +120,7 @@ export default function SettingsUnified() {
 			<div className="w-full md:w-64 flex flex-col gap-1">
 				{[
 					{ id: "general", label: "General", icon: <Settings size={18} /> },
+					{ id: "interface", label: "Interface", icon: <Layout size={18} /> },
 					{ id: "branding", label: "Branding", icon: <Palette size={18} /> },
 					{ id: "developer", label: "Developer & Email", icon: <Code size={18} /> },
 					...(mailboxId ? [{ id: "agent", label: "Agent & Prompts", icon: <Bot size={18} /> }] : []),
@@ -139,6 +141,9 @@ export default function SettingsUnified() {
 				))}
 			</div>
 
+			{activeTab === "interface" ? (
+				<SettingsInterface />
+			) : (
 			<Surface className="flex-1 p-8 rounded-3xl border border-kumo-line bg-kumo-base shadow-sm">
 				<form onSubmit={handleSubmit} className="space-y-8 max-w-xl">
 					{activeTab === "general" && (
@@ -475,6 +480,7 @@ export default function SettingsUnified() {
 					</div>
 				</form>
 			</Surface>
+			)}
 		</div>
 	);
 }

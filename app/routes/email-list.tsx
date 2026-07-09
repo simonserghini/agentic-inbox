@@ -244,6 +244,8 @@ export default function EmailListRoute() {
 		selectEmail,
 		closePanel,
 		startCompose,
+		isThreadedView: threaded,
+		toggleThreadedView,
 	} = useUIStore();
 	const [page, setPage] = useState(1);
 	const [animateRows, setAnimateRows] = useState(false);
@@ -267,23 +269,8 @@ export default function EmailListRoute() {
 	const [snoozePickerOpen, setSnoozePickerOpen] = useState<string | null>(null);
 	const [undoSendId, setUndoSendId] = useState<string | null>(null);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-	const [threaded, setThreaded] = useState(() => {
-		// Default to threaded view, persist preference in localStorage
-		if (typeof window !== "undefined") {
-			const saved = localStorage.getItem("agentic-inbox-threaded");
-			if (saved !== null) return saved === "true";
-		}
-		return true;
-	});
-
 	const toggleThreaded = () => {
-		setThreaded((prev) => {
-			const next = !prev;
-			if (typeof window !== "undefined") {
-				localStorage.setItem("agentic-inbox-threaded", String(next));
-			}
-			return next;
-		});
+		toggleThreadedView();
 		closePanel();
 	};
 
