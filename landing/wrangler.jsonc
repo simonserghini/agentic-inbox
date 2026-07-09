@@ -1,0 +1,14 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "agenticinbox-landing",
+	"compatibility_date": "2025-11-28",
+	"assets": {
+		"directory": "./public"
+	},
+	"routes": [
+		{
+			"pattern": "agenticinbox.serghini.me",
+			"custom_domain": true
+		}
+	]
+}
