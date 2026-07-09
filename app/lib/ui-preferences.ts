@@ -2,17 +2,24 @@
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
 
+export const NAV_SIDEBAR_KEY = "agentic-inbox-nav-sidebar";
+/** @deprecated migrated to NAV_SIDEBAR_KEY */
 export const NAV_COLLAPSED_KEY = "agentic-inbox-nav-collapsed";
 export const AGENT_PANEL_KEY = "agentic-inbox-agent-panel-open";
 export const THREADED_VIEW_KEY = "agentic-inbox-threaded";
 
-export function getStoredNavCollapsed(): boolean {
-	if (typeof window === "undefined") return false;
-	return localStorage.getItem(NAV_COLLAPSED_KEY) === "true";
+export function getStoredNavSidebarEnabled(): boolean {
+	if (typeof window === "undefined") return true;
+	const saved = localStorage.getItem(NAV_SIDEBAR_KEY);
+	if (saved !== null) return saved === "true";
+	// Legacy: collapsed=true meant hidden; collapsed=false meant always visible
+	const legacy = localStorage.getItem(NAV_COLLAPSED_KEY);
+	if (legacy !== null) return legacy !== "true";
+	return true;
 }
 
-export function setStoredNavCollapsed(collapsed: boolean): void {
-	localStorage.setItem(NAV_COLLAPSED_KEY, String(collapsed));
+export function setStoredNavSidebarEnabled(enabled: boolean): void {
+	localStorage.setItem(NAV_SIDEBAR_KEY, String(enabled));
 }
 
 export function getStoredAgentPanelOpen(): boolean | null {

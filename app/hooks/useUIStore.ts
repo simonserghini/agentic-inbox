@@ -6,10 +6,10 @@ import { create } from "zustand";
 import {
 	getDefaultAgentPanelOpen,
 	getStoredAgentPanelOpen,
-	getStoredNavCollapsed,
+	getStoredNavSidebarEnabled,
 	getStoredThreadedView,
 	setStoredAgentPanelOpen,
-	setStoredNavCollapsed,
+	setStoredNavSidebarEnabled,
 	setStoredThreadedView,
 } from "~/lib/ui-preferences";
 import type { Email } from "~/types";
@@ -42,10 +42,9 @@ interface UIState {
 	closeSidebar: () => void;
 	toggleSidebar: () => void;
 
-	// Desktop nav sidebar collapse
-	isNavCollapsed: boolean;
-	toggleNavCollapsed: () => void;
-	setNavCollapsed: (collapsed: boolean) => void;
+	// Desktop nav sidebar (collapsed rail, expands on hover)
+	isNavSidebarEnabled: boolean;
+	setNavSidebarEnabled: (enabled: boolean) => void;
 
 	// Agent panel
 	isAgentPanelOpen: boolean;
@@ -72,7 +71,7 @@ export const useUIStore = create<UIState>((set, get) => ({
 	composeOptions: { mode: "new", originalEmail: null },
 	isComposeModalOpen: false,
 	isSidebarOpen: false,
-	isNavCollapsed: getStoredNavCollapsed(),
+	isNavSidebarEnabled: getStoredNavSidebarEnabled(),
 	isAgentPanelOpen: getStoredAgentPanelOpen() ?? getDefaultAgentPanelOpen(),
 	isThreadedView: getStoredThreadedView(),
 	agentCommand: null,
@@ -107,15 +106,9 @@ export const useUIStore = create<UIState>((set, get) => ({
 	closeSidebar: () => set({ isSidebarOpen: false }),
 	toggleSidebar: () => set({ isSidebarOpen: !get().isSidebarOpen }),
 
-	toggleNavCollapsed: () => {
-		const next = !get().isNavCollapsed;
-		setStoredNavCollapsed(next);
-		set({ isNavCollapsed: next });
-	},
-
-	setNavCollapsed: (collapsed) => {
-		setStoredNavCollapsed(collapsed);
-		set({ isNavCollapsed: collapsed });
+	setNavSidebarEnabled: (enabled) => {
+		setStoredNavSidebarEnabled(enabled);
+		set({ isNavSidebarEnabled: enabled });
 	},
 
 	toggleAgentPanel: () => {

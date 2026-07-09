@@ -38,8 +38,8 @@ const THEME_OPTIONS: { id: ThemePreference | "system"; label: string; icon: Reac
 
 export default function SettingsInterface() {
 	const {
-		isNavCollapsed,
-		setNavCollapsed,
+		isNavSidebarEnabled,
+		setNavSidebarEnabled,
 		isAgentPanelOpen,
 		setAgentPanelOpen,
 		isThreadedView,
@@ -65,17 +65,17 @@ export default function SettingsInterface() {
 
 					<SettingRow
 						title="Folder sidebar"
-						description="Show the folder navigation panel on desktop."
+						description="Show a collapsed folder rail on desktop that expands when you hover it."
 					>
 						<Switch
-							checked={!isNavCollapsed}
-							onCheckedChange={(open) => setNavCollapsed(!open)}
+							checked={isNavSidebarEnabled}
+							onCheckedChange={setNavSidebarEnabled}
 						/>
 					</SettingRow>
 
 					<SettingRow
 						title="Agent panel"
-						description="Show the AI assistant panel on desktop."
+						description="Show a collapsed agent rail on desktop that expands when you hover it."
 					>
 						<Switch
 							checked={isAgentPanelOpen}
@@ -128,8 +128,8 @@ export default function SettingsInterface() {
 				</div>
 
 				<div className="p-4 rounded-2xl border border-dashed border-kumo-line bg-kumo-recessed/30 text-xs text-kumo-subtle leading-relaxed">
-					On desktop, you can also hover the left and right edges of the inbox to quickly
-					toggle the folder sidebar and agent panel.
+					On desktop, sidebars stay collapsed as thin rails at the screen edges and slide
+					open while your cursor is over them.
 				</div>
 			</div>
 		</Surface>
