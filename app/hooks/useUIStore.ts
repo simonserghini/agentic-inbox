@@ -7,6 +7,22 @@ import type { Email } from "~/types";
 
 export type ComposeMode = "new" | "reply" | "reply-all" | "forward";
 
+const NAV_COLLAPSED_KEY = "agentic-inbox-nav-collapsed";
+const AGENT_PANEL_KEY = "agentic-inbox-agent-panel-open";
+
+function getInitialNavCollapsed(): boolean {
+	if (typeof window === "undefined") return false;
+	return localStorage.getItem(NAV_COLLAPSED_KEY) === "true";
+}
+
+function getInitialAgentPanelOpen(): boolean {
+	if (typeof window === "undefined") return false;
+	const saved = localStorage.getItem(AGENT_PANEL_KEY);
+	if (saved === "true") return true;
+	if (saved === "false") return false;
+	return window.matchMedia("(min-width: 1024px)").matches;
+}
+
 export interface ComposeOptions {
 	mode: ComposeMode;
 	originalEmail?: Email | null;
@@ -33,6 +49,10 @@ interface UIState {
 	closeSidebar: () => void;
 	toggleSidebar: () => void;
 
+	// Desktop nav sidebar collapse
+	isNavCollapsed: boolean;
+	toggleNavCollapsed: () => void;
+
 	// Agent panel
 	isAgentPanelOpen: boolean;
 	toggleAgentPanel: () => void;
@@ -52,10 +72,8 @@ export const useUIStore = create<UIState>((set, get) => ({
 	composeOptions: { mode: "new", originalEmail: null },
 	isComposeModalOpen: false,
 	isSidebarOpen: false,
-	isAgentPanelOpen:
-		typeof window !== "undefined"
-			? window.matchMedia("(min-width: 1024px)").matches
-			: false,
+	isNavCollapsed: getInitialNavCollapsed(),
+	isAgentPanelOpen: getInitialAgentPanelOpen(),
 	agentCommand: null,
 
 	selectEmail: (id) => set({ selectedEmailId: id, isComposing: false }),
@@ -88,9 +106,24 @@ export const useUIStore = create<UIState>((set, get) => ({
 	closeSidebar: () => set({ isSidebarOpen: false }),
 	toggleSidebar: () => set({ isSidebarOpen: !get().isSidebarOpen }),
 
-	toggleAgentPanel: () => set({ isAgentPanelOpen: !get().isAgentPanelOpen }),
+	toggleNavCollapsed: () =>
+		set((state) => {
+			const next = !state.isNavCollapsed;
+			localStorage.setItem(NAV_COLLAPSED_KEY, String(next));
+			return { isNavCollapsed: next };
+		}),
 
-	setAgentCommand: (command) => set({ agentCommand: command, isAgentPanelOpen: true }),
+	toggleAgentPanel: () =>
+		set((state) => {
+			const next = !state.isAgentPanelOpen;
+			localStorage.setItem(AGENT_PANEL_KEY, String(next));
+			return { isAgentPanelOpen: next };
+		}),
+
+	setAgentCommand: (command) => {
+		localStorage.setItem(AGENT_PANEL_KEY, "true");
+		set({ agentCommand: command, isAgentPanelOpen: true });
+	},
 
 	openComposeModal: (options) =>
 		set({

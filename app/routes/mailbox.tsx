@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { Outlet, useParams } from "react-router";
 import AgentSidebar from "~/components/AgentSidebar";
 import ComposeEmail from "~/components/ComposeEmail";
+import EdgePanelToggle from "~/components/EdgePanelToggle";
 import Header from "~/components/Header";
 import MobileBottomNav from "~/components/MobileBottomNav";
 import Sidebar from "~/components/Sidebar";
@@ -20,6 +21,8 @@ export default function MailboxRoute() {
 	const {
 		isSidebarOpen,
 		closeSidebar,
+		isNavCollapsed,
+		toggleNavCollapsed,
 		isAgentPanelOpen,
 		toggleAgentPanel,
 		closePanel,
@@ -54,17 +57,37 @@ export default function MailboxRoute() {
 				/>
 			)}
 
-			{/* Sidebar: hidden on mobile by default, shown as overlay when open */}
+			{/* Sidebar: overlay on mobile, collapsible on desktop */}
 			<div
-				className={`fixed inset-y-0 left-0 z-40 w-[min(280px,85vw)] transform transition-transform duration-200 ease-in-out md:relative md:w-64 md:translate-x-0 md:z-0 shadow-2xl md:shadow-none ${
+				className={`fixed inset-y-0 left-0 z-40 w-[min(280px,85vw)] transform transition-all duration-200 ease-in-out shadow-2xl md:relative md:shrink-0 md:z-0 md:shadow-none ${
 					isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+				} ${
+					isNavCollapsed
+						? "md:w-0 md:opacity-0 md:pointer-events-none md:overflow-hidden"
+						: "md:w-64 md:translate-x-0"
 				}`}
 			>
 				<Sidebar />
 			</div>
 
 			{/* Main content */}
-			<div className="flex-1 flex flex-col min-w-0 bg-kumo-base">
+			<div className="relative flex-1 flex flex-col min-w-0 bg-kumo-base">
+				<EdgePanelToggle
+					side="left"
+					isOpen={!isNavCollapsed}
+					onToggle={toggleNavCollapsed}
+					openLabel="Show folders"
+					closeLabel="Hide folders"
+					className="hidden md:block"
+				/>
+				<EdgePanelToggle
+					side="right"
+					isOpen={isAgentPanelOpen}
+					onToggle={toggleAgentPanel}
+					openLabel="Show agent panel"
+					closeLabel="Hide agent panel"
+					className="hidden lg:block"
+				/>
 				<Header />
 				<main className="flex-1 overflow-hidden pb-14 md:pb-0">
 					<Outlet />
