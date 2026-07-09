@@ -22,7 +22,7 @@ export default function EmailPanelHeader({
 	onNext,
 }: EmailPanelHeaderProps) {
 	return (
-		<div className="px-4 py-3 border-b border-kumo-line shrink-0 md:px-6 flex items-center justify-between">
+		<div className="px-4 py-2.5 sm:py-3 border-b border-kumo-line shrink-0 md:px-6 flex items-center justify-between gap-2">
 			<div className="min-w-0">
 				<h2 className="text-base font-semibold text-kumo-default truncate">{subject}</h2>
 				{showThreadCount && (

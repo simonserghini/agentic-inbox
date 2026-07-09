@@ -96,11 +96,13 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 	return (
 		<div
 			ref={rowRef}
-			className={`group flex items-start gap-3 px-3 py-3 cursor-pointer transition-all border-b border-kumo-line/50 ${
+			className={`group relative flex items-start gap-2.5 sm:gap-3 px-3 py-3.5 sm:py-3 cursor-pointer transition-all border-b border-kumo-line/50 active:bg-kumo-tint ${
 				selected
-					? "bg-kumo-brand/5 border-l-2 border-l-kumo-brand"
-					: "hover:bg-kumo-tint border-l-2 border-l-transparent focus-within:bg-kumo-tint/50"
-			} ${isUnread ? "" : "opacity-85"}`}
+					? "bg-kumo-brand/8 border-l-[3px] border-l-kumo-brand pl-[calc(0.75rem-1px)]"
+					: isUnread
+						? "thread-row-unread hover:bg-kumo-tint border-l-[3px] border-l-transparent pl-[calc(0.75rem-1px)]"
+						: "hover:bg-kumo-tint border-l-[3px] border-l-transparent pl-[calc(0.75rem-1px)] opacity-90"
+			}`}
 			onClick={() => onSelectThread(thread.thread_id)}
 			role="button"
 			tabIndex={0}
@@ -146,7 +148,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 			)}
 
 			{/* Sender avatar */}
-			<div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-kumo-fill text-xs font-bold text-kumo-subtle" aria-hidden="true">
+			<div className="shrink-0 flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-kumo-fill text-xs font-bold text-kumo-subtle ring-1 ring-kumo-line/50" aria-hidden="true">
 				{displayName.charAt(0).toUpperCase()}
 			</div>
 
@@ -158,7 +160,7 @@ function ThreadRow({ thread, onSelectThread, selected, selectedIds, toggleSelect
 							? `${displayName} + ${thread.other_senders.length}`
 							: displayName}
 					</span>
-					<span className="text-[11px] text-kumo-subtle truncate">{sender.email}</span>
+					<span className="hidden sm:inline text-[11px] text-kumo-subtle truncate">{sender.email}</span>
 					{isUnread && (
 						<div className="shrink-0 w-2 h-2 rounded-full bg-kumo-brand" aria-hidden="true" />
 					)}

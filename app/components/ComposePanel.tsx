@@ -6,7 +6,7 @@ import { Banner } from "@cloudflare/kumo/components/banner";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Input } from "@cloudflare/kumo/components/input";
 import { Tooltip } from "@cloudflare/kumo/components/tooltip";
-import { CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CalendarBlankIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, XIcon } from "@phosphor-icons/react";
 import { useParams } from "react-router";
 import { useComposeForm } from "~/hooks/useComposeForm";
 import RichTextEditor from "./RichTextEditor";
@@ -49,21 +49,30 @@ export default function ComposePanel() {
 
 	return (
 		<div className="flex flex-col h-full bg-kumo-base">
-			<div className="flex items-center justify-between px-4 py-3 border-b border-kumo-line shrink-0 md:px-6">
-				<h2 className="text-base font-semibold text-kumo-default">
+			<div className="flex items-center gap-2 px-4 py-3 border-b border-kumo-line shrink-0 md:px-6 safe-area-top">
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					icon={<ArrowLeftIcon size={18} />}
+					onClick={closeCompose}
+					disabled={isSending}
+					aria-label="Back to list"
+					className="md:hidden shrink-0"
+				/>
+				<h2 className="text-base font-semibold text-kumo-default flex-1 truncate">
 					{formTitle}
 				</h2>
-				<div className="flex items-center gap-1">
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						icon={<XIcon size={18} />}
-						onClick={closeCompose}
-						disabled={isSending}
-						aria-label="Close compose"
-					/>
-				</div>
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					icon={<XIcon size={18} />}
+					onClick={closeCompose}
+					disabled={isSending}
+					aria-label="Close compose"
+					className="shrink-0"
+				/>
 			</div>
 
 			<form

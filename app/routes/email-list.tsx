@@ -747,7 +747,7 @@ export default function EmailListRoute() {
 
 			{/* Batch selection toolbar */}
 			{selectedCount > 0 && (
-				<div className="flex items-center gap-2 px-4 py-2 bg-kumo-brand/10 border-b border-kumo-line shrink-0 animate-fade-in">
+				<div className="toolbar-scroll flex items-center gap-2 px-4 py-2 bg-kumo-brand/10 border-b border-kumo-line shrink-0 animate-fade-in">
 					<Button variant="ghost" size="sm" onClick={clearSelection}>
 						<XIcon size={14} className="mr-1" />
 						{selectedCount} selected
@@ -793,12 +793,12 @@ export default function EmailListRoute() {
 
 			<div
 				ref={headerRef}
-				className={`flex items-center justify-between px-4 py-3.5 border-b border-kumo-line shrink-0 md:px-5 transition-shadow ${
+				className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-b border-kumo-line shrink-0 md:px-5 transition-shadow ${
 					isScrolled ? "shadow-sm shadow-kumo-line/20" : ""
 				}`}
 			>
-				<div className="flex items-center gap-3">
-					<h1 className="text-lg font-semibold text-kumo-default">
+				<div className="flex items-center gap-2 min-w-0">
+					<h1 className="text-base sm:text-lg font-semibold text-kumo-default truncate">
 						{folderName}
 					</h1>
 					{folder === Folders.INBOX && (
@@ -826,10 +826,10 @@ export default function EmailListRoute() {
 						</Tooltip>
 					)}
 				</div>
-				<div className="flex items-center gap-1">
+				<div className="toolbar-scroll flex items-center gap-1 shrink-0">
 					{displayTotal > 0 && (
-						<span className="text-sm text-kumo-subtle mr-2 hidden sm:inline">
-							{displayTotal} conversation{displayTotal !== 1 ? "s" : ""}
+						<span className="text-xs sm:text-sm text-kumo-subtle mr-1 sm:mr-2 whitespace-nowrap">
+							{displayTotal} <span className="hidden xs:inline">conversation</span>{displayTotal !== 1 ? "s" : ""}
 						</span>
 					)}
 					{folder !== Folders.TRASH && (
@@ -845,7 +845,7 @@ export default function EmailListRoute() {
 									});
 								}}
 							>
-								Mark All Read
+								<span className="hidden sm:inline">Mark All Read</span>
 							</Button>
 						</Tooltip>
 					)}
@@ -863,7 +863,7 @@ export default function EmailListRoute() {
 									});
 								}}
 							>
-								Empty Trash
+								<span className="hidden sm:inline">Empty Trash</span>
 							</Button>
 						</Tooltip>
 					)}

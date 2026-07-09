@@ -56,7 +56,7 @@ export default function MailboxRoute() {
 
 			{/* Sidebar: hidden on mobile by default, shown as overlay when open */}
 			<div
-				className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 md:z-0 ${
+				className={`fixed inset-y-0 left-0 z-40 w-[min(280px,85vw)] transform transition-transform duration-200 ease-in-out md:relative md:w-64 md:translate-x-0 md:z-0 shadow-2xl md:shadow-none ${
 					isSidebarOpen ? "translate-x-0" : "-translate-x-full"
 				}`}
 			>
@@ -82,9 +82,9 @@ export default function MailboxRoute() {
 					</div>
 					{/* Mobile bottom sheet */}
 					<div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-						<div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={toggleAgentPanel} />
-						<div className="relative bg-kumo-base rounded-t-2xl max-h-[70vh] flex flex-col animate-slide-in-right">
-							<div className="w-10 h-1 rounded-full bg-kumo-line mx-auto mt-2 mb-1" />
+						<div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={toggleAgentPanel} aria-hidden="true" />
+						<div className="relative bg-kumo-base rounded-t-2xl max-h-[85vh] flex flex-col animate-slide-up safe-area-bottom shadow-[0_-8px_40px_rgba(0,0,0,0.15)]">
+							<div className="w-10 h-1 rounded-full bg-kumo-line mx-auto mt-3 mb-1 shrink-0" />
 							<AgentSidebar />
 						</div>
 					</div>

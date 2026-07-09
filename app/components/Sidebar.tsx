@@ -18,6 +18,7 @@ import {
 	PlusIcon,
 	TrashIcon,
 	TrayIcon,
+	XIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router";
@@ -128,9 +129,20 @@ export default function Sidebar() {
 	};
 
 	return (
-		<aside className="h-full w-64 bg-kumo-recessed flex flex-col shrink-0 border-r border-kumo-line">
+		<aside className="h-full w-full bg-kumo-recessed flex flex-col shrink-0 border-r border-kumo-line safe-area-top">
 			{/* Back + identity */}
 			<div className="px-4 pt-4 pb-1">
+				<div className="flex items-center justify-between md:hidden mb-2">
+					<span className="text-sm font-semibold text-kumo-default">Folders</span>
+					<Button
+						variant="ghost"
+						shape="square"
+						size="sm"
+						icon={<XIcon size={18} />}
+						onClick={closeSidebar}
+						aria-label="Close folders"
+					/>
+				</div>
 				<button
 					type="button"
 					onClick={() => {

@@ -44,6 +44,17 @@ body {
   }
 }
 
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes sparkle {
   0%, 100% {
     opacity: 0;
@@ -76,6 +87,10 @@ body {
 
 .animate-slide-in-right {
   animation: slideInRight 0.25s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-sparkle {
@@ -155,4 +170,22 @@ button:active {
 /* Safe area for mobile devices with notch/home indicator */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.thread-row-unread {
+  box-shadow: inset 3px 0 0 var(--color-kumo-brand);
+}
+
+.toolbar-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.toolbar-scroll::-webkit-scrollbar {
+  display: none;
 }

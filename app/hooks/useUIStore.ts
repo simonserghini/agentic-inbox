@@ -52,7 +52,10 @@ export const useUIStore = create<UIState>((set, get) => ({
 	composeOptions: { mode: "new", originalEmail: null },
 	isComposeModalOpen: false,
 	isSidebarOpen: false,
-	isAgentPanelOpen: true,
+	isAgentPanelOpen:
+		typeof window !== "undefined"
+			? window.matchMedia("(min-width: 1024px)").matches
+			: false,
 	agentCommand: null,
 
 	selectEmail: (id) => set({ selectedEmailId: id, isComposing: false }),

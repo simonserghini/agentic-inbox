@@ -41,10 +41,12 @@ const SYNTAX_COLORS = {
 
 interface SearchInputProps {
 	className?: string;
+	autoFocus?: boolean;
+	onSubmit?: () => void;
 	onSearchResultPreview?: (results: any[]) => void;
 }
 
-export default function SearchInput({ className }: SearchInputProps) {
+export default function SearchInput({ className, autoFocus, onSubmit }: SearchInputProps) {
 	const { mailboxId } = useParams<{ mailboxId: string }>();
 	const navigate = useNavigate();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -122,7 +124,8 @@ export default function SearchInput({ className }: SearchInputProps) {
 		saveRecentSearch(query);
 		navigate(`/mailbox/${mailboxId}/search?q=${encodeURIComponent(query)}`);
 		setIsFocused(false);
-	}, [value, mailboxId, navigate, saveRecentSearch]);
+		onSubmit?.();
+	}, [value, mailboxId, navigate, saveRecentSearch, onSubmit]);
 
 	const applySuggestion = useCallback((suggestion: string) => {
 		setValue(suggestion);
@@ -217,7 +220,8 @@ export default function SearchInput({ className }: SearchInputProps) {
 				<div className="relative flex-1">
 					<input
 						ref={inputRef}
-						type="text"
+						type="search"
+						autoFocus={autoFocus}
 						value={value}
 						onChange={(e) => {
 							setValue(e.target.value);
