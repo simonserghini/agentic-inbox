@@ -89,14 +89,14 @@ export default function MailboxRoute() {
 				side="right"
 				expandedWidth={380}
 				enabled={isAgentPanelOpen}
-				breakpoint="lg"
+				breakpoint="md"
 			>
 				<AgentSidebar />
 			</HoverExpandPanel>
 
-			{/* Agent bottom sheet on mobile */}
+			{/* Agent bottom sheet — phone only; tablet/small desktop uses hover rail */}
 			{isAgentPanelOpen && (
-				<div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+				<div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
 					<div
 						className="absolute inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={toggleAgentPanel}

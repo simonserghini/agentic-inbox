@@ -4,6 +4,7 @@
 
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useMediaQuery } from "~/hooks/useIsMobile";
 
 const COLLAPSED_WIDTH = 12;
 const LEAVE_DELAY_MS = 150;
@@ -24,9 +25,25 @@ export default function HoverExpandPanel({
 	children,
 }: HoverExpandPanelProps) {
 	const [expanded, setExpanded] = useState(false);
+	const [viewportWidth, setViewportWidth] = useState(
+		typeof window !== "undefined" ? window.innerWidth : expandedWidth,
+	);
 	const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	useEffect(() => () => clearTimeout(leaveTimer.current), []);
+
+	useEffect(() => {
+		const onResize = () => setViewportWidth(window.innerWidth);
+		onResize();
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
+
+	// Collapse when crossing below desktop so a narrow window doesn't leave it open.
+	useEffect(() => {
+		if (!isDesktop) setExpanded(false);
+	}, [isDesktop]);
 
 	if (!enabled) return null;
 
@@ -35,7 +52,14 @@ export default function HoverExpandPanel({
 	const isLeft = side === "left";
 	const edge = isLeft ? "left-0" : "right-0";
 	const border = isLeft ? "border-r" : "border-l";
-	const width = expanded ? expandedWidth : COLLAPSED_WIDTH;
+	const reservedMain = isLeft
+		? 280
+		: Math.max(400, Math.floor(viewportWidth * 0.58));
+	const resolvedExpandedWidth = Math.min(
+		expandedWidth,
+		Math.max(240, viewportWidth - reservedMain),
+	);
+	const width = expanded ? resolvedExpandedWidth : COLLAPSED_WIDTH;
 	const HintIcon = isLeft ? CaretRightIcon : CaretLeftIcon;
 
 	const handleEnter = () => {
@@ -63,7 +87,7 @@ export default function HoverExpandPanel({
 				<div
 					className="h-full overflow-y-auto overflow-x-hidden transition-opacity duration-150"
 					style={{
-						width: expandedWidth,
+						width: resolvedExpandedWidth,
 						opacity: expanded ? 1 : 0,
 						pointerEvents: expanded ? "auto" : "none",
 					}}

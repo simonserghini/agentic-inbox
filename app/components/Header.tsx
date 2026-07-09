@@ -107,7 +107,7 @@ export default function Header() {
 								icon={<RobotIcon size={20} />}
 								onClick={toggleAgentPanel}
 								aria-label="Toggle agent panel"
-								className="hidden lg:inline-flex"
+								className="hidden md:inline-flex"
 							/>
 						</Tooltip>
 						<ThemeToggle />
